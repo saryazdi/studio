@@ -8,6 +8,7 @@ import FolderIcon from "@mui/icons-material/Folder";
 import FolderOpenIcon from "@mui/icons-material/FolderOpen";
 import {
   Collapse,
+  List,
   ListItem,
   ListItemButton,
   ListItemButtonProps,
@@ -21,6 +22,8 @@ import { useState } from "react";
 
 import Stack from "@foxglove/studio-base/components/Stack";
 
+import { Layer } from "./Layer";
+
 export type Item = {
   key: string;
   onClick?: ListItemButtonProps["onClick"];
@@ -28,9 +31,10 @@ export type Item = {
   primaryTypographyProps?: ListItemTextProps["primaryTypographyProps"];
   secondary?: ListItemTextProps["secondary"];
   secondaryTypographyProps?: ListItemTextProps["secondaryTypographyProps"];
+  items?: Item[];
 };
 
-export type NestedListItemProps = {
+export type LayerGroupProps = {
   defaultOpen?: boolean;
   divider?: ListItemProps["divider"];
   icon?: JSX.Element;
@@ -44,12 +48,14 @@ export type NestedListItemProps = {
 
 const StyledListItem = muiStyled(ListItem)(({ theme }) => ({
   ".MuiListItemIcon-root": {
-    minWidth: theme.spacing(6),
-    marginLeft: theme.spacing(-1.5),
+    minWidth: theme.spacing(3.5),
     opacity: 0.3,
   },
+  ".MuiListItemButton-root": {
+    paddingLeft: theme.spacing(3),
+  },
   ".MuiListItemText-inset": {
-    paddingLeft: theme.spacing(4.5),
+    paddingLeft: theme.spacing(6),
   },
   "&:hover": {
     outline: `1px solid ${theme.palette.primary.main}`,
@@ -61,7 +67,44 @@ const StyledListItem = muiStyled(ListItem)(({ theme }) => ({
   },
 }));
 
-export function LayerGroup(props: NestedListItemProps): JSX.Element {
+export function LayerSubGroup(props: Omit<LayerGroupProps, "icon" | "openIcon">): JSX.Element {
+  const {
+    defaultOpen = false,
+    primary,
+    primaryTypographyProps,
+    secondary,
+    secondaryTypographyProps,
+    items = [],
+  } = props;
+  const [open, setOpen] = useState<boolean>(defaultOpen);
+  const textProps = { primary, primaryTypographyProps, secondary, secondaryTypographyProps };
+
+  return (
+    <>
+      <StyledListItem disablePadding>
+        <ListItemButton onClick={() => setOpen(!open)}>
+          <ListItemIcon>{open ? <ArrowDownIcon /> : <ArrowRightIcon />}</ListItemIcon>
+          <ListItemText {...textProps} />
+        </ListItemButton>
+      </StyledListItem>
+      {items.length > 0 && (
+        <Collapse in={open} timeout="auto">
+          <List dense disablePadding>
+            {items.map(({ ...item }) => (
+              <StyledListItem disablePadding key={item.key}>
+                <ListItemButton onClick={item.onClick}>
+                  <ListItemText inset primary={item.primary} secondary={item.secondary} />
+                </ListItemButton>
+              </StyledListItem>
+            ))}
+          </List>
+        </Collapse>
+      )}
+    </>
+  );
+}
+
+export function LayerGroup(props: LayerGroupProps): JSX.Element {
   const {
     defaultOpen = false,
     icon = <FolderIcon />,
@@ -70,33 +113,41 @@ export function LayerGroup(props: NestedListItemProps): JSX.Element {
     primaryTypographyProps,
     secondary,
     secondaryTypographyProps,
-    divider,
     items = [],
   } = props;
   const [open, setOpen] = useState<boolean>(defaultOpen);
   const textProps = { primary, primaryTypographyProps, secondary, secondaryTypographyProps };
   return (
     <>
-      <StyledListItem divider={divider} disablePadding {...props}>
-        <ListItemButton onClick={() => setOpen(!open)}>
-          <ListItemIcon>
-            <Stack direction="row">
-              {open ? <ArrowDownIcon /> : <ArrowRightIcon />}
-              {open ? openIcon : icon}
-            </Stack>
-          </ListItemIcon>
-          <ListItemText {...textProps} />
-        </ListItemButton>
-      </StyledListItem>
+      <Layer
+        onClick={() => setOpen(!open)}
+        divider
+        icon={
+          <Stack direction="row" style={{ marginLeft: "-20px" }}>
+            {open ? <ArrowDownIcon /> : <ArrowRightIcon />}
+            {open ? openIcon : icon}
+          </Stack>
+        }
+        {...textProps}
+      />
       {items.length > 0 && (
         <Collapse in={open} timeout="auto">
-          {items.map(({ ...item }) => (
-            <StyledListItem disablePadding key={item.key}>
-              <ListItemButton onClick={item.onClick}>
-                <ListItemText inset primary={item.primary} secondary={item.secondary} />
-              </ListItemButton>
-            </StyledListItem>
-          ))}
+          <List dense disablePadding>
+            {items.map(({ ...item }) => (
+              <>
+                {item.items ? (
+                  <LayerSubGroup
+                    key={item.key}
+                    primary={item.primary}
+                    secondary={item.secondary}
+                    items={item.items}
+                  />
+                ) : (
+                  <Layer disableIcon onClick={item.onClick} key={item.key} primary={item.primary} />
+                )}
+              </>
+            ))}
+          </List>
         </Collapse>
       )}
     </>

@@ -6,26 +6,21 @@ import AddIcon from "@mui/icons-material/Add";
 import ClearIcon from "@mui/icons-material/Clear";
 import GridIcon from "@mui/icons-material/GridOnSharp";
 import LayersIcon from "@mui/icons-material/Layers";
+import MapIcon from "@mui/icons-material/Map";
 import SearchIcon from "@mui/icons-material/Search";
 import {
   AppBar,
-  List,
-  Typography,
-  styled as muiStyled,
-  TextField,
-  IconButton,
   CircularProgress,
-  ListItem,
-  ListItemText,
+  IconButton,
+  List,
   Skeleton,
-  ListItemIcon,
-  ListItemButtonProps,
-  ListItemProps,
-  ListItemButton,
   SvgIcon,
   SvgIconProps,
+  TextField,
+  Typography,
+  styled as muiStyled,
 } from "@mui/material";
-import { ReactNode, useState } from "react";
+import { useState } from "react";
 
 import {
   MessagePipelineContext,
@@ -34,6 +29,7 @@ import {
 import Stack from "@foxglove/studio-base/components/Stack";
 import { PlayerPresence } from "@foxglove/studio-base/players/types";
 
+import { Layer } from "./Layer";
 import { LayerGroup } from "./LayerGroup";
 
 const CubeIcon = (props: SvgIconProps): JSX.Element => (
@@ -52,44 +48,7 @@ const StyledAppBar = muiStyled(AppBar, { skipSx: true })(({ theme }) => ({
   padding: theme.spacing(1),
 }));
 
-const StyledListItem = muiStyled(ListItem)(({ theme }) => ({
-  ".MuiListItemIcon-root": {
-    minWidth: theme.spacing(4.5),
-    paddingLeft: theme.spacing(1),
-    opacity: 0.3,
-  },
-  "&:hover": {
-    outline: `1px solid ${theme.palette.primary.main}`,
-    outlineOffset: -1,
-
-    ".MuiListItemIcon-root": {
-      opacity: 0.8,
-    },
-  },
-}));
-
 const selectPlayerPresence = ({ playerState }: MessagePipelineContext) => playerState.presence;
-
-export function Layer({
-  title,
-  icon,
-  onClick,
-  secondaryAction,
-}: {
-  title: ReactNode;
-  icon?: JSX.Element;
-  onClick?: ListItemButtonProps["onClick"];
-  secondaryAction?: ListItemProps["secondaryAction"];
-}): JSX.Element {
-  return (
-    <StyledListItem divider disablePadding secondaryAction={secondaryAction}>
-      <ListItemButton onClick={onClick}>
-        <ListItemIcon>{icon ?? <LayersIcon />}</ListItemIcon>
-        <ListItemText primary={title} primaryTypographyProps={{ noWrap: true, title }} />
-      </ListItemButton>
-    </StyledListItem>
-  );
-}
 
 export function LayerList(): JSX.Element {
   const [filterText, setFilterText] = useState<string>("");
@@ -125,14 +84,13 @@ export function LayerList(): JSX.Element {
         </StyledAppBar>
         <List key="loading" dense disablePadding>
           {[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15].map((i) => (
-            <StyledListItem divider key={i}>
-              <ListItemText primary={<Skeleton animation={false} width="20%" />} />
-            </StyledListItem>
+            <Layer key={i} primary={<Skeleton animation={false} width="20%" />} divider />
           ))}
         </List>
       </>
     );
   }
+
   return (
     <Stack fullHeight>
       <StyledAppBar position="sticky" color="default" elevation={0}>
@@ -159,10 +117,11 @@ export function LayerList(): JSX.Element {
         />
       </StyledAppBar>
       <List disablePadding dense>
-        <Layer icon={<AddIcon />} title="Add layer" />
-        <Layer icon={<LayersIcon />} title="Background" />
-        <Layer icon={<GridIcon />} title="Grid" />
-        <Layer icon={<CubeIcon />} title="3D Model" />
+        <Layer divider icon={<AddIcon />} primary="Add layer" />
+        <Layer divider icon={<LayersIcon />} primary="Background" />
+        <Layer divider icon={<MapIcon />} primary="Map" />
+        <Layer divider icon={<GridIcon />} primary="Grid" />
+        <Layer divider icon={<CubeIcon />} primary="3D Model" />
         <LayerGroup
           divider
           primary="TF"
@@ -203,10 +162,24 @@ export function LayerList(): JSX.Element {
             "/pose",
             "/markers",
             "/annotations",
-          ].map((i) => ({
-            key: i,
-            primary: i,
-          }))}
+          ].map((key) =>
+            key === "/semantic_map"
+              ? {
+                  key,
+                  primary: key,
+                  defaultOpen: true,
+                  items: [
+                    {
+                      key: "/semantic_map/centerline",
+                      primary: "centerline",
+                    },
+                  ],
+                }
+              : {
+                  key,
+                  primary: key,
+                },
+          )}
         />
       </List>
     </Stack>
