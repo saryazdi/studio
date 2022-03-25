@@ -8,6 +8,7 @@ import FolderIcon from "@mui/icons-material/Folder";
 import FolderOpenIcon from "@mui/icons-material/FolderOpen";
 import {
   Collapse,
+  Divider,
   List,
   ListItem,
   ListItemButton,
@@ -148,6 +149,7 @@ export function LayerGroup(props: LayerGroupProps): JSX.Element {
               </>
             ))}
           </List>
+          <Divider />
         </Collapse>
       )}
     </>
