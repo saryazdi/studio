@@ -25,7 +25,7 @@ import {
   SvgIcon,
   SvgIconProps,
 } from "@mui/material";
-import { useState } from "react";
+import { ReactNode, useState } from "react";
 
 import {
   MessagePipelineContext,
@@ -76,7 +76,7 @@ export function Layer({
   onClick,
   secondaryAction,
 }: {
-  title: string;
+  title: ReactNode;
   icon?: JSX.Element;
   onClick?: ListItemButtonProps["onClick"];
   secondaryAction?: ListItemProps["secondaryAction"];
@@ -188,6 +188,7 @@ export function LayerList(): JSX.Element {
         />
         <LayerGroup
           divider
+          defaultOpen
           primary="Topics"
           items={[
             "/map",
