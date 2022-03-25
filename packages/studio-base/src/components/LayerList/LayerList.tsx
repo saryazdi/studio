@@ -2,8 +2,9 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
-import BlurOnIcon from "@mui/icons-material/BlurOn";
+import AddIcon from "@mui/icons-material/Add";
 import ClearIcon from "@mui/icons-material/Clear";
+import GridIcon from "@mui/icons-material/GridOnSharp";
 import LayersIcon from "@mui/icons-material/Layers";
 import SearchIcon from "@mui/icons-material/Search";
 import {
@@ -18,11 +19,14 @@ import {
   ListItemText,
   Skeleton,
   ListItemIcon,
+  ListItemButtonProps,
+  ListItemProps,
+  ListItemButton,
+  SvgIcon,
+  SvgIconProps,
 } from "@mui/material";
-import { Fzf, FzfResultItem } from "fzf";
-import { useMemo, useState } from "react";
+import { useState } from "react";
 
-import { Topic } from "@foxglove/studio";
 import {
   MessagePipelineContext,
   useMessagePipeline,
@@ -30,33 +34,16 @@ import {
 import Stack from "@foxglove/studio-base/components/Stack";
 import { PlayerPresence } from "@foxglove/studio-base/players/types";
 
-import { NestedListItem } from ".";
+import { LayerGroup } from "./LayerGroup";
 
-const itemToFzfResult = (item: Topic) =>
-  ({
-    item,
-    score: 0,
-    positions: new Set<number>(),
-    start: 0,
-    end: 0,
-  } as FzfResultItem<Topic>);
-
-const HighlightChars = ({ str, indices }: { str: string; indices: Set<number> }) => {
-  const chars = str.split("");
-
-  const nodes = chars.map((char, i) => {
-    if (indices.has(i)) {
-      return (
-        <Typography component="b" key={i} variant="inherit" color="info.main">
-          {char}
-        </Typography>
-      );
-    }
-    return char;
-  });
-
-  return <>{nodes}</>;
-};
+const CubeIcon = (props: SvgIconProps): JSX.Element => (
+  <SvgIcon {...props}>
+    <path
+      fill="currentColor"
+      d="M21,16.5C21,16.88 20.79,17.21 20.47,17.38L12.57,21.82C12.41,21.94 12.21,22 12,22C11.79,22 11.59,21.94 11.43,21.82L3.53,17.38C3.21,17.21 3,16.88 3,16.5V7.5C3,7.12 3.21,6.79 3.53,6.62L11.43,2.18C11.59,2.06 11.79,2 12,2C12.21,2 12.41,2.06 12.57,2.18L20.47,6.62C20.79,6.79 21,7.12 21,7.5V16.5M12,4.15L6.04,7.5L12,10.85L17.96,7.5L12,4.15M5,15.91L11,19.29V12.58L5,9.21V15.91M19,15.91V9.21L13,12.58V19.29L19,15.91Z"
+    />
+  </SvgIcon>
+);
 
 const StyledAppBar = muiStyled(AppBar, { skipSx: true })(({ theme }) => ({
   top: -1,
@@ -72,30 +59,41 @@ const StyledListItem = muiStyled(ListItem)(({ theme }) => ({
     opacity: 0.3,
   },
   "&:hover": {
+    outline: `1px solid ${theme.palette.primary.main}`,
+    outlineOffset: -1,
+
     ".MuiListItemIcon-root": {
-      opacity: 0.6,
+      opacity: 0.8,
     },
   },
 }));
 
 const selectPlayerPresence = ({ playerState }: MessagePipelineContext) => playerState.presence;
 
+export function Layer({
+  title,
+  icon,
+  onClick,
+  secondaryAction,
+}: {
+  title: string;
+  icon?: JSX.Element;
+  onClick?: ListItemButtonProps["onClick"];
+  secondaryAction?: ListItemProps["secondaryAction"];
+}): JSX.Element {
+  return (
+    <StyledListItem divider disablePadding secondaryAction={secondaryAction}>
+      <ListItemButton onClick={onClick}>
+        <ListItemIcon>{icon ?? <LayersIcon />}</ListItemIcon>
+        <ListItemText primary={title} primaryTypographyProps={{ noWrap: true, title }} />
+      </ListItemButton>
+    </StyledListItem>
+  );
+}
+
 export function LayerList(): JSX.Element {
   const [filterText, setFilterText] = useState<string>("");
   const playerPresence = useMessagePipeline(selectPlayerPresence);
-  const topics = useMessagePipeline((ctx) => ctx.playerState.activeData?.topics ?? []);
-
-  const filteredTopics: FzfResultItem<Topic>[] = useMemo(
-    () =>
-      filterText
-        ? new Fzf(topics, {
-            fuzzy: filterText.length > 2 ? "v2" : false,
-            sort: true,
-            selector: (topic) => topic.name,
-          }).find(filterText)
-        : topics.map((t) => itemToFzfResult(t)),
-    [filterText, topics],
-  );
 
   if (playerPresence === PlayerPresence.ERROR) {
     return (
@@ -136,7 +134,7 @@ export function LayerList(): JSX.Element {
     );
   }
   return (
-    <Stack>
+    <Stack fullHeight>
       <StyledAppBar position="sticky" color="default" elevation={0}>
         <TextField
           disabled={playerPresence !== PlayerPresence.PRESENT}
@@ -161,27 +159,54 @@ export function LayerList(): JSX.Element {
         />
       </StyledAppBar>
       <List disablePadding dense>
-        <NestedListItem
-          // defaultOpen
+        <Layer icon={<AddIcon />} title="Add layer" />
+        <Layer icon={<LayersIcon />} title="Background" />
+        <Layer icon={<GridIcon />} title="Grid" />
+        <Layer icon={<CubeIcon />} title="3D Model" />
+        <LayerGroup
           divider
-          primary="Title"
-          items={filteredTopics
-            .map(({ item }, idx) => ({
-              key: `${idx}-${item.name}`,
-              primary: item.name,
-            }))
-            .reverse()}
+          primary="TF"
+          items={[
+            "/map",
+            "/tf",
+            "/drivable_area",
+            "/RADAR_FRONT",
+            "/RADAR_FRONT_LEFT",
+            "/RADAR_FRONT_RIGHT",
+            "/RADAR_BACK_LEFT",
+            "/RADAR_BACK_RIGHT",
+            "/LIDAR_TOP",
+            "/CAM_FRONT/camera_info",
+            "/CAM_FRONT_RIGHT/camera_info",
+            "/CAM_BACK_RIGHT/camera_info",
+            "/CAM_BACK/camera_info",
+            "/CAM_BACK_LEFT/camera_info",
+          ].map((i) => ({
+            key: i,
+            primary: i,
+          }))}
         />
-
-        {filteredTopics.map(({ item, positions }) => (
-          <StyledListItem divider key={item.name}>
-            <ListItemIcon>{item.icon ?? <LayersIcon />}</ListItemIcon>
-            <ListItemText
-              primary={<HighlightChars str={item.name} indices={positions} />}
-              primaryTypographyProps={{ noWrap: true, title: item.name }}
-            />
-          </StyledListItem>
-        ))}
+        <LayerGroup
+          divider
+          primary="Topics"
+          items={[
+            "/map",
+            "/semantic_map",
+            "/drivable_area",
+            "/RADAR_FRONT",
+            "/RADAR_FRONT_LEFT",
+            "/RADAR_FRONT_RIGHT",
+            "/RADAR_BACK_LEFT",
+            "/RADAR_BACK_RIGHT",
+            "/LIDAR_TOP",
+            "/pose",
+            "/markers",
+            "/annotations",
+          ].map((i) => ({
+            key: i,
+            primary: i,
+          }))}
+        />
       </List>
     </Stack>
   );

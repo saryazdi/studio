@@ -52,13 +52,16 @@ const StyledListItem = muiStyled(ListItem)(({ theme }) => ({
     paddingLeft: theme.spacing(4.5),
   },
   "&:hover": {
+    outline: `1px solid ${theme.palette.primary.main}`,
+    outlineOffset: -1,
+
     ".MuiListItemIcon-root": {
-      opacity: 0.6,
+      opacity: 0.8,
     },
   },
 }));
 
-export function NestedListItem(props: NestedListItemProps): JSX.Element {
+export function LayerGroup(props: NestedListItemProps): JSX.Element {
   const {
     defaultOpen = false,
     icon = <FolderIcon />,
