@@ -3,6 +3,8 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
 import AddIcon from "@mui/icons-material/Add";
+import ChevronLeftIcon from "@mui/icons-material/ChevronLeft";
+import ChevronRightIcon from "@mui/icons-material/ChevronRight";
 import ClearIcon from "@mui/icons-material/Clear";
 import GridIcon from "@mui/icons-material/GridOnSharp";
 import LayersIcon from "@mui/icons-material/Layers";
@@ -19,6 +21,15 @@ import {
   TextField,
   Typography,
   styled as muiStyled,
+  Divider,
+  Box,
+  Button,
+  ToggleButton,
+  ToggleButtonGroup,
+  InputBase,
+  ButtonBase,
+  Select,
+  MenuItem,
 } from "@mui/material";
 import { useState } from "react";
 
@@ -28,6 +39,7 @@ import {
 } from "@foxglove/studio-base/components/MessagePipeline";
 import Stack from "@foxglove/studio-base/components/Stack";
 import { PlayerPresence } from "@foxglove/studio-base/players/types";
+import { fonts } from "@foxglove/studio-base/util/sharedStyleConstants";
 
 import { Layer } from "./Layer";
 import { LayerGroup } from "./LayerGroup";
@@ -117,10 +129,115 @@ export function LayerList(): JSX.Element {
         />
       </StyledAppBar>
       <List disablePadding dense>
+        {/* FIXME: I am mock data */}
         <Layer divider icon={<AddIcon />} primary="Add layer" />
         <Layer divider icon={<LayersIcon />} primary="Background" />
+        <Stack
+          direction="row"
+          paddingY={0.5}
+          paddingRight={2}
+          paddingLeft={6.5}
+          alignItems="center"
+          justifyContent="space-between"
+          gap={2}
+        >
+          <Typography variant="subtitle2">Color</Typography>
+          <Stack direction="row" gap={0.5}>
+            <TextField
+              size="small"
+              value="#000000"
+              InputProps={{
+                startAdornment: (
+                  <ButtonBase>
+                    <Box
+                      bgcolor="#000000"
+                      height={16}
+                      width={16}
+                      borderRadius={1}
+                      marginLeft={-0.25}
+                      sx={{
+                        outline: "1px solid",
+                        outlineColor: "actions.hover",
+                      }}
+                    />
+                  </ButtonBase>
+                ),
+                sx: {
+                  paddingY: "1px",
+                },
+              }}
+            />
+            <Select size="small" value={10}>
+              <MenuItem value={10}>RGBA</MenuItem>
+              <MenuItem value={20}>HEX</MenuItem>
+              <MenuItem value={30}>HSL</MenuItem>
+            </Select>
+          </Stack>
+        </Stack>
+        <Stack
+          direction="row"
+          paddingY={0.5}
+          paddingRight={2}
+          paddingLeft={6.5}
+          alignItems="center"
+          justifyContent="space-between"
+          gap={2}
+        >
+          <Typography variant="subtitle2">Width</Typography>
+          <Stack direction="row" gap={0.5}>
+            <Box>
+              <ToggleButton size="small">
+                <ChevronLeftIcon fontSize="small" />
+              </ToggleButton>
+              <TextField size="small" />
+              <ToggleButton size="small">
+                <ChevronRightIcon fontSize="small" />
+              </ToggleButton>
+            </Box>
+          </Stack>
+        </Stack>
+        <Divider />
         <Layer divider icon={<MapIcon />} primary="Map" />
         <Layer divider icon={<GridIcon />} primary="Grid" />
+        <Stack
+          direction="row"
+          paddingY={0.5}
+          paddingRight={2}
+          paddingLeft={6.5}
+          alignItems="center"
+          justifyContent="space-between"
+          gap={2}
+        >
+          <Typography variant="subtitle2">Color</Typography>
+          <Stack direction="row" gap={0.5}>
+            <TextField
+              size="small"
+              value="#248eff"
+              InputProps={{
+                startAdornment: (
+                  <ButtonBase>
+                    <Box
+                      bgcolor="#248eff"
+                      height={16}
+                      width={16}
+                      borderRadius={1}
+                      marginLeft={-0.25}
+                    />
+                  </ButtonBase>
+                ),
+                sx: {
+                  paddingY: "1px",
+                },
+              }}
+            />
+            <Select size="small" value={10}>
+              <MenuItem value={10}>RGBA</MenuItem>
+              <MenuItem value={20}>HEX</MenuItem>
+              <MenuItem value={30}>HSL</MenuItem>
+            </Select>
+          </Stack>
+        </Stack>
+        <Divider />
         <Layer divider icon={<CubeIcon />} primary="3D Model" />
         <LayerGroup
           divider
