@@ -36,13 +36,16 @@ export function Layer(props: LayerProps): JSX.Element {
     <StyledListItem {...rest} disablePadding>
       <ListItemButton onClick={onClick}>
         <ListItemIcon>{(!disableIcon && icon) ?? <LayerIcon />}</ListItemIcon>
-        <ListItemText primary={primary} primaryTypographyProps={{ noWrap: true }} />
+        <ListItemText
+          primary={primary}
+          primaryTypographyProps={{ noWrap: true, variant: "subtitle2" }}
+        />
       </ListItemButton>
     </StyledListItem>
   );
 }
 
-type LayerProps = {
+export type LayerProps = {
   primary: ListItemTextProps["primary"];
   icon?: JSX.Element;
   onClick?: ListItemButtonProps["onClick"];

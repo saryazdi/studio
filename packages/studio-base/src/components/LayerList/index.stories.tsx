@@ -19,7 +19,7 @@ export const PlayerNotPresent = (): JSX.Element => {
   return (
     <ModalHost>
       <MockMessagePipelineProvider noActiveData presence={PlayerPresence.NOT_PRESENT}>
-        <Box height="100vh" overflow="auto">
+        <Box height="100vh" overflow="auto" bgcolor="background.paper">
           <LayerList />
         </Box>
       </MockMessagePipelineProvider>
@@ -31,7 +31,7 @@ export const PlayerIntializing = (): JSX.Element => {
   return (
     <ModalHost>
       <MockMessagePipelineProvider presence={PlayerPresence.INITIALIZING}>
-        <Box height="100vh" overflow="auto">
+        <Box height="100vh" overflow="auto" bgcolor="background.paper">
           <LayerList />
         </Box>
       </MockMessagePipelineProvider>
@@ -43,7 +43,7 @@ export const PlayerPresent = (): JSX.Element => {
   return (
     <ModalHost>
       <MockMessagePipelineProvider presence={PlayerPresence.PRESENT}>
-        <Box height="100vh" overflow="auto">
+        <Box height="100vh" overflow="auto" bgcolor="background.paper">
           <LayerList />
         </Box>
       </MockMessagePipelineProvider>
@@ -55,7 +55,7 @@ export const PlayerWithError = (): JSX.Element => {
   return (
     <ModalHost>
       <MockMessagePipelineProvider presence={PlayerPresence.ERROR}>
-        <Box height="100vh" overflow="auto">
+        <Box height="100vh" overflow="auto" bgcolor="background.paper">
           <LayerList />
         </Box>
       </MockMessagePipelineProvider>

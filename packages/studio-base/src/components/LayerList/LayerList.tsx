@@ -3,8 +3,8 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
 import AddIcon from "@mui/icons-material/Add";
-import ChevronLeftIcon from "@mui/icons-material/ChevronLeft";
-import ChevronRightIcon from "@mui/icons-material/ChevronRight";
+import ArrowDownIcon from "@mui/icons-material/ArrowDropDown";
+import ArrowRightIcon from "@mui/icons-material/ArrowRight";
 import ClearIcon from "@mui/icons-material/Clear";
 import GridIcon from "@mui/icons-material/GridOnSharp";
 import LayersIcon from "@mui/icons-material/Layers";
@@ -12,24 +12,20 @@ import MapIcon from "@mui/icons-material/Map";
 import SearchIcon from "@mui/icons-material/Search";
 import {
   AppBar,
+  Box,
+  ButtonBase,
   CircularProgress,
+  Divider,
   IconButton,
   List,
   Skeleton,
   SvgIcon,
   SvgIconProps,
   TextField,
-  Typography,
-  styled as muiStyled,
-  Divider,
-  Box,
-  Button,
   ToggleButton,
   ToggleButtonGroup,
-  InputBase,
-  ButtonBase,
-  Select,
-  MenuItem,
+  Typography,
+  styled as muiStyled,
 } from "@mui/material";
 import { useState } from "react";
 
@@ -39,10 +35,11 @@ import {
 } from "@foxglove/studio-base/components/MessagePipeline";
 import Stack from "@foxglove/studio-base/components/Stack";
 import { PlayerPresence } from "@foxglove/studio-base/players/types";
-import { fonts } from "@foxglove/studio-base/util/sharedStyleConstants";
 
+import { ColorPickerInput } from "./ColorPickerInput";
 import { Layer } from "./Layer";
 import { LayerGroup } from "./LayerGroup";
+import { NumberInput } from "./NumberInput";
 
 const CubeIcon = (props: SvgIconProps): JSX.Element => (
   <SvgIcon {...props}>
@@ -53,11 +50,24 @@ const CubeIcon = (props: SvgIconProps): JSX.Element => (
   </SvgIcon>
 );
 
+const ScanIcon = (props: SvgIconProps): JSX.Element => (
+  <SvgIcon {...props}>
+    <path
+      d="M2 5.75A2.75 2.75 0 0 1 4.75 3h1.5a.75.75 0 0 1 0 1.5h-1.5c-.69 0-1.25.56-1.25 1.25v1.5a.75.75 0 0 1-1.5 0v-1.5Zm15-2a.75.75 0 0 1 .75-.75h1.5A2.75 2.75 0 0 1 22 5.75v1.5a.75.75 0 0 1-1.5 0v-1.5c0-.69-.56-1.25-1.25-1.25h-1.5a.75.75 0 0 1-.75-.75ZM2.75 16a.75.75 0 0 1 .75.75v1.5c0 .69.56 1.25 1.25 1.25h1.5a.75.75 0 0 1 0 1.5h-1.5A2.75 2.75 0 0 1 2 18.25v-1.5a.75.75 0 0 1 .75-.75Zm18.5 0a.75.75 0 0 1 .75.75v1.5A2.75 2.75 0 0 1 19.25 21h-1.5a.75.75 0 0 1 0-1.5h1.5c.69 0 1.25-.56 1.25-1.25v-1.5a.75.75 0 0 1 .75-.75ZM5.75 7a.75.75 0 0 1 .75.75v8.5a.75.75 0 0 1-1.5 0v-8.5A.75.75 0 0 1 5.75 7Zm4.75.75a.75.75 0 0 0-1.5 0v8.5a.75.75 0 0 0 1.5 0v-8.5ZM13.75 7a.75.75 0 0 1 .75.75v8.5a.75.75 0 0 1-1.5 0v-8.5a.75.75 0 0 1 .75-.75Zm4.75.75a.75.75 0 0 0-1.5 0v8.5a.75.75 0 0 0 1.5 0v-8.5Z"
+      fill="currentColor"
+    />
+  </SvgIcon>
+);
+
 const StyledAppBar = muiStyled(AppBar, { skipSx: true })(({ theme }) => ({
   top: -1,
   zIndex: theme.zIndex.appBar - 1,
   borderBottom: `1px solid ${theme.palette.divider}`,
   padding: theme.spacing(1),
+}));
+
+const StyledToggleButton = muiStyled(ToggleButton)(({ theme }) => ({
+  padding: theme.spacing(0.5),
 }));
 
 const selectPlayerPresence = ({ playerState }: MessagePipelineContext) => playerState.presence;
@@ -129,9 +139,17 @@ export function LayerList(): JSX.Element {
         />
       </StyledAppBar>
       <List disablePadding dense>
-        {/* FIXME: I am mock data */}
+        {/* TODO: I am mock data */}
         <Layer divider icon={<AddIcon />} primary="Add layer" />
-        <Layer divider icon={<LayersIcon />} primary="Background" />
+        <Layer
+          icon={
+            <Stack direction="row" style={{ marginLeft: "-20px" }}>
+              <ArrowDownIcon />
+              <LayersIcon />
+            </Stack>
+          }
+          primary="Background"
+        />
         <Stack
           direction="row"
           paddingY={0.5}
@@ -139,106 +157,197 @@ export function LayerList(): JSX.Element {
           paddingLeft={6.5}
           alignItems="center"
           justifyContent="space-between"
-          gap={2}
+          gap={0.5}
         >
-          <Typography variant="subtitle2">Color</Typography>
-          <Stack direction="row" gap={0.5}>
-            <TextField
-              size="small"
-              value="#000000"
-              InputProps={{
-                startAdornment: (
-                  <ButtonBase>
-                    <Box
-                      bgcolor="#000000"
-                      height={16}
-                      width={16}
-                      borderRadius={1}
-                      marginLeft={-0.25}
-                      sx={{
-                        outline: "1px solid",
-                        outlineColor: "actions.hover",
-                      }}
-                    />
-                  </ButtonBase>
-                ),
-                sx: {
-                  paddingY: "1px",
-                },
-              }}
-            />
-            <Select size="small" value={10}>
-              <MenuItem value={10}>RGBA</MenuItem>
-              <MenuItem value={20}>HEX</MenuItem>
-              <MenuItem value={30}>HSL</MenuItem>
-            </Select>
-          </Stack>
+          <Typography variant="subtitle2" color="text.secondary" flexBasis="40%">
+            Color
+          </Typography>
+          <Box flex="auto">
+            <ColorPickerInput defaultValue="#000000" size="small" variant="filled" fullWidth />
+          </Box>
         </Stack>
-        <Stack
-          direction="row"
-          paddingY={0.5}
-          paddingRight={2}
-          paddingLeft={6.5}
-          alignItems="center"
-          justifyContent="space-between"
-          gap={2}
-        >
-          <Typography variant="subtitle2">Width</Typography>
-          <Stack direction="row" gap={0.5}>
-            <Box>
-              <ToggleButton size="small">
-                <ChevronLeftIcon fontSize="small" />
-              </ToggleButton>
-              <TextField size="small" />
-              <ToggleButton size="small">
-                <ChevronRightIcon fontSize="small" />
-              </ToggleButton>
+        <Divider />
+        <Layer
+          divider
+          icon={
+            <Stack direction="row" style={{ marginLeft: "-20px" }}>
+              <ArrowRightIcon />
+              <MapIcon />
+            </Stack>
+          }
+          primary="Map"
+        />
+        <Layer
+          icon={
+            <Stack direction="row" style={{ marginLeft: "-20px" }}>
+              <ArrowDownIcon />
+              <GridIcon />
+            </Stack>
+          }
+          primary="Grid"
+        />
+        <Stack gap={0.5} paddingY={0.5}>
+          <Stack
+            direction="row"
+            paddingRight={2}
+            paddingLeft={6.5}
+            alignItems="center"
+            justifyContent="space-between"
+            gap={1}
+          >
+            <Typography variant="subtitle2" color="text.secondary" flexBasis="40%">
+              Color
+            </Typography>
+            <Box flex="auto">
+              <ColorPickerInput defaultValue="#248eff" size="small" variant="filled" fullWidth />
+            </Box>
+          </Stack>
+          <Stack
+            direction="row"
+            paddingRight={2}
+            paddingLeft={6.5}
+            alignItems="center"
+            justifyContent="space-between"
+            gap={1}
+          >
+            <Typography variant="subtitle2" color="text.secondary" flexBasis="40%">
+              Size
+            </Typography>
+            <Box flex="auto">
+              <NumberInput defaultValue={10} size="small" variant="filled" fullWidth />
+            </Box>
+          </Stack>
+          <Stack
+            direction="row"
+            paddingRight={2}
+            paddingLeft={6.5}
+            alignItems="center"
+            justifyContent="space-between"
+            gap={1}
+          >
+            <Typography variant="subtitle2" color="text.secondary" flexBasis="40%">
+              Subdivisions
+            </Typography>
+            <Box flex="auto">
+              <NumberInput defaultValue={9} size="small" variant="filled" fullWidth />
             </Box>
           </Stack>
         </Stack>
         <Divider />
-        <Layer divider icon={<MapIcon />} primary="Map" />
-        <Layer divider icon={<GridIcon />} primary="Grid" />
-        <Stack
-          direction="row"
-          paddingY={0.5}
-          paddingRight={2}
-          paddingLeft={6.5}
-          alignItems="center"
-          justifyContent="space-between"
-          gap={2}
-        >
-          <Typography variant="subtitle2">Color</Typography>
-          <Stack direction="row" gap={0.5}>
-            <TextField
-              size="small"
-              value="#248eff"
-              InputProps={{
-                startAdornment: (
-                  <ButtonBase>
-                    <Box
-                      bgcolor="#248eff"
-                      height={16}
-                      width={16}
-                      borderRadius={1}
-                      marginLeft={-0.25}
-                    />
-                  </ButtonBase>
-                ),
-                sx: {
-                  paddingY: "1px",
-                },
-              }}
-            />
-            <Select size="small" value={10}>
-              <MenuItem value={10}>RGBA</MenuItem>
-              <MenuItem value={20}>HEX</MenuItem>
-              <MenuItem value={30}>HSL</MenuItem>
-            </Select>
+        <Layer
+          icon={
+            <Stack direction="row" style={{ marginLeft: "-20px" }}>
+              <ArrowDownIcon />
+              <CubeIcon />
+            </Stack>
+          }
+          primary="3D Model"
+        />
+        <Stack gap={0.5} paddingY={0.5}>
+          <Stack
+            direction="row"
+            paddingRight={2}
+            paddingLeft={6.5}
+            alignItems="center"
+            justifyContent="space-between"
+            gap={1}
+          >
+            <Typography variant="subtitle2" color="text.secondary" flexBasis="40%">
+              Color
+            </Typography>
+            <Box flex="auto">
+              <ColorPickerInput defaultValue="#8166E8bb" size="small" variant="filled" fullWidth />
+            </Box>
           </Stack>
         </Stack>
         <Divider />
-        <Layer divider icon={<CubeIcon />} primary="3D Model" />
+        <Layer
+          icon={
+            <Stack direction="row" style={{ marginLeft: "-20px" }}>
+              <ArrowDownIcon />
+              <CubeIcon />
+            </Stack>
+          }
+          primary="Pose"
+        />
+        <Stack gap={0.5} paddingY={0.5}>
+          <Stack
+            direction="row"
+            paddingRight={2}
+            paddingLeft={6.5}
+            alignItems="center"
+            justifyContent="space-between"
+            gap={1}
+          >
+            <Typography variant="subtitle2" color="text.secondary" flexBasis="40%">
+              Color
+            </Typography>
+            <Box flex="auto">
+              <ColorPickerInput defaultValue="#ffffff" size="small" variant="filled" fullWidth />
+            </Box>
+          </Stack>
+          <Stack
+            direction="row"
+            paddingRight={2}
+            paddingLeft={6.5}
+            alignItems="center"
+            justifyContent="space-between"
+            gap={1}
+          >
+            <Typography variant="subtitle2" color="text.secondary" flexBasis="40%">
+              Shaft length
+            </Typography>
+            <Box flex="auto">
+              <NumberInput defaultValue={1.5} size="small" variant="filled" fullWidth />
+            </Box>
+          </Stack>
+          <Stack
+            direction="row"
+            paddingRight={2}
+            paddingLeft={6.5}
+            alignItems="center"
+            justifyContent="space-between"
+            gap={1}
+          >
+            <Typography variant="subtitle2" color="text.secondary" flexBasis="40%">
+              Shaft width
+            </Typography>
+            <Box flex="auto">
+              <NumberInput defaultValue={1.5} size="small" variant="filled" fullWidth />
+            </Box>
+          </Stack>
+          <Stack
+            direction="row"
+            paddingRight={2}
+            paddingLeft={6.5}
+            alignItems="center"
+            justifyContent="space-between"
+            gap={1}
+          >
+            <Typography variant="subtitle2" color="text.secondary" flexBasis="40%">
+              Head length
+            </Typography>
+            <Box flex="auto">
+              <NumberInput defaultValue={2} size="small" variant="filled" fullWidth />
+            </Box>
+          </Stack>
+          <Stack
+            direction="row"
+            paddingRight={2}
+            paddingLeft={6.5}
+            alignItems="center"
+            justifyContent="space-between"
+            gap={1}
+          >
+            <Typography variant="subtitle2" color="text.secondary" flexBasis="40%">
+              Head width
+            </Typography>
+            <Box flex="auto">
+              <NumberInput defaultValue={2} size="small" variant="filled" fullWidth />
+            </Box>
+          </Stack>
+        </Stack>
+        <Divider />
         <LayerGroup
           divider
           primary="TF"
@@ -275,8 +384,6 @@ export function LayerList(): JSX.Element {
             "/RADAR_FRONT_RIGHT",
             "/RADAR_BACK_LEFT",
             "/RADAR_BACK_RIGHT",
-            "/LIDAR_TOP",
-            "/pose",
             "/markers",
             "/annotations",
           ].map((key) =>
@@ -298,6 +405,159 @@ export function LayerList(): JSX.Element {
                 },
           )}
         />
+        <Layer
+          primary="/LIDAR_TOP"
+          icon={
+            <Stack direction="row" style={{ marginLeft: "-20px" }}>
+              <ArrowDownIcon />
+              <ScanIcon />
+            </Stack>
+          }
+        />
+        <Stack gap={0.5} paddingY={0.5}>
+          <Stack
+            direction="row"
+            paddingRight={2}
+            paddingLeft={6.5}
+            alignItems="center"
+            justifyContent="space-between"
+            gap={1}
+          >
+            <Typography variant="subtitle2" color="text.secondary" flexBasis="40%">
+              Point size
+            </Typography>
+            <Box flex="auto">
+              <NumberInput defaultValue={2} size="small" variant="filled" fullWidth />
+            </Box>
+          </Stack>
+          <Stack
+            direction="row"
+            paddingRight={2}
+            paddingLeft={6.5}
+            alignItems="center"
+            justifyContent="space-between"
+            gap={1}
+          >
+            <Typography variant="subtitle2" color="text.secondary" flexBasis="40%">
+              Point shape
+            </Typography>
+            <Box flex="auto">
+              <ToggleButtonGroup color="primary" fullWidth value="circle" size="small">
+                <StyledToggleButton value="circle">
+                  <SvgIcon fontSize="small">
+                    <circle cx={12} cy={12} r={8} />
+                  </SvgIcon>
+                </StyledToggleButton>
+                <StyledToggleButton value="square">
+                  <SvgIcon fontSize="small">
+                    <rect x={4} y={4} height={16} width={16} />
+                  </SvgIcon>
+                </StyledToggleButton>
+              </ToggleButtonGroup>
+            </Box>
+          </Stack>
+          <Stack
+            direction="row"
+            paddingRight={2}
+            paddingLeft={6.5}
+            alignItems="center"
+            justifyContent="space-between"
+            gap={1}
+          >
+            <Typography variant="subtitle2" color="text.secondary" flexBasis="40%">
+              Decay time (seconds)
+            </Typography>
+            <Box flex="auto">
+              <NumberInput defaultValue={0} size="small" variant="filled" fullWidth />
+            </Box>
+          </Stack>
+          <Stack
+            direction="row"
+            paddingRight={2}
+            paddingLeft={6.5}
+            alignItems="center"
+            justifyContent="space-between"
+            gap={1}
+          >
+            <Typography variant="subtitle2" color="text.secondary" flexBasis="40%">
+              Color
+            </Typography>
+            <Box flex="auto">
+              <ToggleButtonGroup color="primary" fullWidth value="point_data" size="small">
+                <StyledToggleButton value="flat">Flat</StyledToggleButton>
+                <StyledToggleButton value="point_data">Point data</StyledToggleButton>
+              </ToggleButtonGroup>
+            </Box>
+          </Stack>
+          <Stack
+            direction="row"
+            paddingRight={2}
+            paddingLeft={6.5}
+            alignItems="center"
+            justifyContent="space-between"
+            gap={1}
+          >
+            <Typography variant="subtitle2" color="text.secondary" flexBasis="40%">
+              Min value
+            </Typography>
+            <Box flex="auto">
+              <NumberInput placeholder="auto" size="small" variant="filled" fullWidth />
+            </Box>
+          </Stack>
+          <Stack
+            direction="row"
+            paddingRight={2}
+            paddingLeft={6.5}
+            alignItems="center"
+            justifyContent="space-between"
+            gap={1}
+          >
+            <Typography variant="subtitle2" color="text.secondary" flexBasis="40%">
+              Max value
+            </Typography>
+            <Box flex="auto">
+              <NumberInput placeholder="auto" size="small" variant="filled" fullWidth />
+            </Box>
+          </Stack>
+          <Stack
+            direction="row"
+            paddingRight={2}
+            paddingLeft={6.5}
+            alignItems="center"
+            justifyContent="space-between"
+            gap={1}
+          >
+            <Typography variant="subtitle2" color="text.secondary" flexBasis="40%">
+              Color scale
+            </Typography>
+            <Box flex="auto">
+              <ButtonBase
+                sx={{
+                  width: "100%",
+                  border: "1px solid",
+                  borderColor: "divider",
+                  bgcolor: "actions.hover",
+                }}
+              >
+                <Stack direction="row" padding={0.375} gap={0.5} sx={{ width: "100%" }}>
+                  <Box
+                    flex="auto"
+                    paddingBottom={2.5}
+                    sx={{
+                      backgroundImage: `linear-gradient(to right, ${[
+                        "#3887F9",
+                        "#2FE5AD",
+                        "#96FA50",
+                        "#FFB827",
+                        "#E34613",
+                      ].join(",")})`,
+                    }}
+                  />
+                </Stack>
+              </ButtonBase>
+            </Box>
+          </Stack>
+        </Stack>
       </List>
     </Stack>
   );
