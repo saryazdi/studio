@@ -4,9 +4,9 @@
 
 import ArrowDownIcon from "@mui/icons-material/ArrowDropDown";
 import ArrowRightIcon from "@mui/icons-material/ArrowRight";
+import DataObjectIcon from "@mui/icons-material/DataObject";
 import LayerIcon from "@mui/icons-material/Layers";
 import {
-  Box,
   Collapse,
   ListItem,
   ListItemButton,
@@ -19,11 +19,16 @@ import {
   ToggleButtonGroup,
   Typography,
   styled as muiStyled,
+  IconButton,
+  MenuItem,
+  Select,
+  TextField,
 } from "@mui/material";
 import { Fragment, useState } from "react";
 import { ReactNode } from "react-markdown/lib/ast-to-react";
 
 import { ColorPickerInput } from "@foxglove/studio-base/components/LayerList/ColorPickerInput";
+import MessagePathInput from "@foxglove/studio-base/components/MessagePathSyntax/MessagePathInput";
 import Stack from "@foxglove/studio-base/components/Stack";
 
 import { ColorScalePicker } from "./ColorScalePicker";
@@ -46,14 +51,22 @@ const StyledListItem = muiStyled(ListItem)(({ theme }) => ({
 }));
 
 const StyledToggleButtonGroup = muiStyled(ToggleButtonGroup)(({ theme }) => ({
-  background: theme.palette.grey[300],
-  padding: theme.spacing(0.5),
-  border: `1px solid ${theme.palette.divider}`,
-  gap: theme.spacing(0.5),
+  background: theme.palette.grey[200],
+  padding: theme.spacing(0.25),
+  border: `1px solid ${theme.palette.divider} !important`,
+  gap: theme.spacing(0.25),
+
+  ".MuiToggleButton-root": {
+    borderRadius: `${theme.shape.borderRadius} !important`,
+
+    "&.Mui-selected": {
+      border: `1px solid ${theme.palette.divider} !important`,
+    },
+  },
 }));
 
 const StyledToggleButton = muiStyled(ToggleButton)(({ theme }) => ({
-  borderRadius: theme.shape.borderRadius,
+  borderRadius: `${theme.shape.borderRadius} !important`,
   padding: 0,
   border: "none",
 
@@ -65,9 +78,9 @@ const StyledToggleButton = muiStyled(ToggleButton)(({ theme }) => ({
 
 const LayerOptions = muiStyled("div")(({ theme }) => ({
   display: "grid",
-  gridTemplateColumns: "1fr minmax(128px, 40%)",
+  gridTemplateColumns: "1fr minmax(192px, 40%)",
   gridAutoRows: 30,
-  padding: theme.spacing(0.5, 2, 1, 6.5),
+  padding: theme.spacing(0.5, 1.5, 1, 6.5),
   columnGap: theme.spacing(1.5),
   rowGap: theme.spacing(0.25),
   alignItems: "center",
@@ -79,8 +92,8 @@ export function Layer(props: LayerProps): JSX.Element {
     icon,
     defaultOpen = false,
     disableIcon = false,
-    onClick,
-    options = [],
+    onClick = () => {},
+    properties = [],
     ...rest
   } = props;
   const [open, setOpen] = useState<boolean>(defaultOpen);
@@ -90,12 +103,12 @@ export function Layer(props: LayerProps): JSX.Element {
       <StyledListItem {...rest} disablePadding>
         <ListItemButton
           onClick={(event) => {
-            options.length > 0 ? setOpen(!open) : onClick(event);
+            properties.length > 0 ? setOpen(!open) : onClick(event);
           }}
         >
           <ListItemIcon>
-            <Stack direction="row" sx={{ marginLeft: options.length > 0 && -2.5 }}>
-              {options.length > 0 && <>{open ? <ArrowDownIcon /> : <ArrowRightIcon />}</>}
+            <Stack direction="row" sx={{ marginLeft: properties.length > 0 && -2.5 }}>
+              {properties.length > 0 && <>{open ? <ArrowDownIcon /> : <ArrowRightIcon />}</>}
               {(!disableIcon && icon) ?? <LayerIcon />}
             </Stack>
           </ListItemIcon>
@@ -105,41 +118,70 @@ export function Layer(props: LayerProps): JSX.Element {
           />
         </ListItemButton>
       </StyledListItem>
-      {options.length > 0 && (
+      {properties.length > 0 && (
         <Collapse in={open}>
           <LayerOptions>
-            {options.map((option, idx) => (
-              <Fragment key={`${idx}.${option.type}.${option.label}`}>
-                <Typography variant="subtitle2" color="text.secondary" noWrap title={option.label}>
-                  {option.label}
+            {properties.map((prop, idx) => (
+              <Fragment key={`${idx}.${prop.type}.${prop.label}`}>
+                <Typography variant="subtitle2" color="text.secondary" noWrap title={prop.label}>
+                  {prop.label}
                 </Typography>
+                {/* <IconButton edge="end" size="small">
+                  <DataObjectIcon fontSize="small" />
+                </IconButton> */}
                 <div>
-                  {option.type === "number" && (
+                  {prop.variant === "number" && (
                     <NumberInput
                       size="small"
                       variant="filled"
-                      defaultValue={option.defaultValue}
-                      placeholder={option.placeholder}
+                      defaultValue={prop.defaultValue}
+                      placeholder={prop.placeholder}
                       fullWidth
                     />
                   )}
-                  {option.type === "enum" &&
-                    (option.values != undefined ? (
-                      <StyledToggleButtonGroup fullWidth value={option.defaultValue} size="small">
-                        {option.values.map((value) => (
-                          <StyledToggleButton key={value} value={value}>
-                            {value}
+                  {prop.variant === "toggle" &&
+                    (prop.options != undefined ? (
+                      <StyledToggleButtonGroup fullWidth value={prop.defaultValue} size="small">
+                        {prop.options.map((opt) => (
+                          <StyledToggleButton key={opt} value={opt}>
+                            {opt}
                           </StyledToggleButton>
                         ))}
                       </StyledToggleButtonGroup>
                     ) : (
                       <>No options</>
                     ))}
-                  {option.type === "boolean" && <>TODO: Boolean</>}
-                  {option.type === "gradient" && <ColorScalePicker color="inherit" size="small" />}
-                  {option.type === "color" && (
+                  {prop.variant === "select" &&
+                    (prop.options != undefined ? (
+                      <Select
+                        size="small"
+                        fullWidth
+                        variant="filled"
+                        defaultValue={prop.defaultValue}
+                      >
+                        {prop.options.map((opt) => (
+                          <MenuItem key={opt} value={opt}>
+                            {opt}
+                          </MenuItem>
+                        ))}
+                      </Select>
+                    ) : (
+                      <>No options</>
+                    ))}
+                  {prop.variant === "messagePath" && <>Message path input</>}
+                  {prop.variant === "string" && (
+                    <TextField
+                      variant="filled"
+                      defaultValue={prop.defaultValue}
+                      size="small"
+                      fullWidth
+                    />
+                  )}
+                  {prop.variant === "boolean" && <>TODO: Boolean</>}
+                  {prop.variant === "gradient" && <ColorScalePicker color="inherit" size="small" />}
+                  {prop.variant === "color" && (
                     <ColorPickerInput
-                      defaultValue={option.defaultValue?.toString()}
+                      defaultValue={prop.defaultValue?.toString()}
                       size="small"
                       variant="filled"
                       fullWidth
@@ -155,13 +197,21 @@ export function Layer(props: LayerProps): JSX.Element {
   );
 }
 
-type LayerOption = {
-  type: "number" | "enum" | "boolean" | "color" | "gradient";
+type LayerProperty = {
+  variant:
+    | "number"
+    | "toggle"
+    | "select"
+    | "string"
+    | "boolean"
+    | "color"
+    | "gradient"
+    | "messagePath";
   defaultValue?: number | string | boolean;
   placeholder?: string;
   label: string;
   help?: ReactNode;
-  values?: string[];
+  options?: string[];
 };
 
 export type LayerProps = {
@@ -172,5 +222,5 @@ export type LayerProps = {
   secondaryAction?: ListItemProps["secondaryAction"];
   divider?: ListItemProps["divider"];
   disableIcon?: boolean;
-  options?: LayerOption[];
+  properties?: LayerProperty[];
 };

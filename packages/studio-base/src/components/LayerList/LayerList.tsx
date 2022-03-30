@@ -139,7 +139,7 @@ export function LayerList(): JSX.Element {
           defaultOpen
           primary="Background"
           icon={<LayersIcon />}
-          options={[{ label: "Color", defaultValue: "#000000", type: "color" }]}
+          properties={[{ label: "Color", defaultValue: "#000000", variant: "color" }]}
           secondaryAction={<VisibilityToggle available checked />}
         />
         <Divider />
@@ -147,16 +147,49 @@ export function LayerList(): JSX.Element {
           icon={<MapIcon />}
           primary="Map"
           secondaryAction={<VisibilityToggle available checked />}
+          properties={[
+            {
+              label: "Message path",
+              variant: "string",
+              defaultValue: "/gps/fix",
+            },
+            {
+              label: "Map style",
+              defaultValue: "Open Street Maps",
+              variant: "select",
+              options: [
+                "Open Street Maps",
+                "Stadia Maps (Adelaide Smooth Light)",
+                "Stadia Maps (Adelaide Smooth Dark)",
+                "Custom",
+              ],
+            },
+            {
+              label: "API key (optional)",
+              variant: "string",
+            },
+            {
+              label: "Color by",
+              defaultValue: "Flat",
+              variant: "toggle",
+              options: ["Flat", "Point data"],
+            },
+            {
+              label: "Marker color",
+              variant: "color",
+              defaultValue: "#ff0000",
+            },
+          ]}
         />
         <Divider />
         <Layer
           defaultOpen
           primary="Grid"
           icon={<GridIcon />}
-          options={[
-            { label: "Color", defaultValue: "#248eff", type: "color" },
-            { label: "Size", defaultValue: 10, type: "number" },
-            { label: "Subdivision", defaultValue: 9, type: "number" },
+          properties={[
+            { label: "Color", defaultValue: "#248eff", variant: "color" },
+            { label: "Size", defaultValue: 10, variant: "number" },
+            { label: "Subdivision", defaultValue: 9, variant: "number" },
           ]}
           secondaryAction={<VisibilityToggle available checked />}
         />
@@ -164,19 +197,19 @@ export function LayerList(): JSX.Element {
         <Layer
           primary="3D Model"
           icon={<CubeIcon />}
-          options={[{ label: "Color", defaultValue: "#8166E8bb", type: "color" }]}
+          properties={[{ label: "Color", defaultValue: "#8166E8bb", variant: "color" }]}
           secondaryAction={<VisibilityToggle available checked />}
         />
         <Divider />
         <Layer
           primary="Pose"
           icon={<CubeIcon />}
-          options={[
-            { label: "Color", defaultValue: "#ffffff", type: "color" },
-            { label: "Shaft length", defaultValue: 1.5, type: "number" },
-            { label: "Shaft width", defaultValue: 1.5, type: "number" },
-            { label: "Head length", defaultValue: 2, type: "number" },
-            { label: "Head width", defaultValue: 2, type: "number" },
+          properties={[
+            { label: "Color", defaultValue: "#ffffff", variant: "color" },
+            { label: "Shaft length", defaultValue: 1.5, variant: "number" },
+            { label: "Shaft width", defaultValue: 1.5, variant: "number" },
+            { label: "Head length", defaultValue: 2, variant: "number" },
+            { label: "Head width", defaultValue: 2, variant: "number" },
           ]}
           secondaryAction={<VisibilityToggle available checked />}
         />
@@ -248,34 +281,34 @@ export function LayerList(): JSX.Element {
           primary="/LIDAR_TOP"
           icon={<ScanIcon />}
           secondaryAction={<VisibilityToggle available checked />}
-          options={[
-            { label: "Point size", defaultValue: 2, type: "number" },
+          properties={[
+            { label: "Point size", defaultValue: 2, variant: "number" },
             {
               label: "Point shape",
               defaultValue: "Circle",
-              type: "enum",
-              values: ["Circle", "Square"],
+              variant: "toggle",
+              options: ["Circle", "Square"],
             },
-            { label: "Decay time (seconds)", defaultValue: 0, type: "number" },
+            { label: "Decay time (seconds)", defaultValue: 0, variant: "number" },
             {
               label: "Color by",
               defaultValue: "Point data",
-              type: "enum",
-              values: ["Flat", "Point data"],
+              variant: "toggle",
+              options: ["Flat", "Point data"],
             },
             {
               label: "Min value",
-              type: "number",
+              variant: "number",
               placeholder: "auto",
             },
             {
               label: "Max value",
-              type: "number",
+              variant: "number",
               placeholder: "auto",
             },
             {
               label: "Color scale",
-              type: "gradient",
+              variant: "gradient",
             },
           ]}
         />
