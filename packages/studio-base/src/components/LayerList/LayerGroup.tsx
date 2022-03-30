@@ -18,6 +18,7 @@ export type Item = {
   onClick?: LayerProps["onClick"];
   primary?: LayerProps["primary"];
   items?: Item[];
+  secondaryAction?: LayerProps["secondaryAction"];
 };
 
 export type LayerGroupProps = {
@@ -26,6 +27,7 @@ export type LayerGroupProps = {
   icon?: JSX.Element;
   openIcon?: JSX.Element;
   primary?: LayerProps["primary"];
+  secondaryAction?: LayerProps["secondaryAction"];
   items?: Item[];
 };
 
@@ -48,7 +50,7 @@ const StyledLayer = muiStyled(Layer)(({ theme }) => ({
 }));
 
 export function LayerSubGroup(props: Omit<LayerGroupProps, "icon" | "openIcon">): JSX.Element {
-  const { defaultOpen = false, primary, items = [] } = props;
+  const { defaultOpen = false, primary, secondaryAction, items = [] } = props;
   const [open, setOpen] = useState<boolean>(defaultOpen);
   const textProps = { primary };
 
@@ -57,6 +59,7 @@ export function LayerSubGroup(props: Omit<LayerGroupProps, "icon" | "openIcon">)
       <Layer
         onClick={() => setOpen(!open)}
         icon={open ? <ArrowDownIcon /> : <ArrowRightIcon />}
+        secondaryAction={secondaryAction}
         {...textProps}
       />
       {items.length > 0 && (
@@ -68,6 +71,7 @@ export function LayerSubGroup(props: Omit<LayerGroupProps, "icon" | "openIcon">)
                 key={item.key}
                 onClick={item.onClick}
                 primary={item.primary}
+                secondaryAction={item.secondaryAction}
               />
             ))}
           </List>
@@ -82,6 +86,7 @@ export function LayerGroup(props: LayerGroupProps): JSX.Element {
     defaultOpen = false,
     icon = <FolderIcon />,
     openIcon = <FolderOpenIcon />,
+    secondaryAction,
     primary,
     items = [],
   } = props;
@@ -92,6 +97,7 @@ export function LayerGroup(props: LayerGroupProps): JSX.Element {
       <Layer
         onClick={() => setOpen(!open)}
         divider
+        secondaryAction={secondaryAction}
         icon={
           <Stack direction="row" style={{ marginLeft: "-20px" }}>
             {open ? <ArrowDownIcon /> : <ArrowRightIcon />}
@@ -106,9 +112,20 @@ export function LayerGroup(props: LayerGroupProps): JSX.Element {
             {items.map(({ ...item }) => (
               <>
                 {item.items ? (
-                  <LayerSubGroup key={item.key} primary={item.primary} items={item.items} />
+                  <LayerSubGroup
+                    key={item.key}
+                    primary={item.primary}
+                    items={item.items}
+                    secondaryAction={item.secondaryAction}
+                  />
                 ) : (
-                  <Layer disableIcon onClick={item.onClick} key={item.key} primary={item.primary} />
+                  <Layer
+                    disableIcon
+                    onClick={item.onClick}
+                    key={item.key}
+                    primary={item.primary}
+                    secondaryAction={item.secondaryAction}
+                  />
                 )}
               </>
             ))}

@@ -3,8 +3,6 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
 import AddIcon from "@mui/icons-material/Add";
-import ArrowDownIcon from "@mui/icons-material/ArrowDropDown";
-import ArrowRightIcon from "@mui/icons-material/ArrowRight";
 import ClearIcon from "@mui/icons-material/Clear";
 import GridIcon from "@mui/icons-material/GridOnSharp";
 import LayersIcon from "@mui/icons-material/Layers";
@@ -12,8 +10,6 @@ import MapIcon from "@mui/icons-material/Map";
 import SearchIcon from "@mui/icons-material/Search";
 import {
   AppBar,
-  Box,
-  ButtonBase,
   CircularProgress,
   Divider,
   IconButton,
@@ -22,8 +18,6 @@ import {
   SvgIcon,
   SvgIconProps,
   TextField,
-  ToggleButton,
-  ToggleButtonGroup,
   Typography,
   styled as muiStyled,
 } from "@mui/material";
@@ -34,12 +28,11 @@ import {
   useMessagePipeline,
 } from "@foxglove/studio-base/components/MessagePipeline";
 import Stack from "@foxglove/studio-base/components/Stack";
+import VisibilityToggle from "@foxglove/studio-base/panels/ThreeDimensionalViz/TopicTree/VisibilityToggle";
 import { PlayerPresence } from "@foxglove/studio-base/players/types";
 
-import { ColorPickerInput } from "./ColorPickerInput";
 import { Layer } from "./Layer";
 import { LayerGroup } from "./LayerGroup";
-import { NumberInput } from "./NumberInput";
 
 const CubeIcon = (props: SvgIconProps): JSX.Element => (
   <SvgIcon {...props}>
@@ -64,10 +57,6 @@ const StyledAppBar = muiStyled(AppBar, { skipSx: true })(({ theme }) => ({
   zIndex: theme.zIndex.appBar - 1,
   borderBottom: `1px solid ${theme.palette.divider}`,
   padding: theme.spacing(1),
-}));
-
-const StyledToggleButton = muiStyled(ToggleButton)(({ theme }) => ({
-  padding: theme.spacing(0.5),
 }));
 
 const selectPlayerPresence = ({ playerState }: MessagePipelineContext) => playerState.presence;
@@ -140,217 +129,62 @@ export function LayerList(): JSX.Element {
       </StyledAppBar>
       <List disablePadding dense>
         {/* TODO: I am mock data */}
-        <Layer divider icon={<AddIcon />} primary="Add layer" />
         <Layer
-          icon={
-            <Stack direction="row" style={{ marginLeft: "-20px" }}>
-              <ArrowDownIcon />
-              <LayersIcon />
-            </Stack>
-          }
+          icon={<AddIcon />}
+          primary="Add layer"
+          secondaryAction={<VisibilityToggle available checked />}
+        />
+        <Divider />
+        <Layer
+          defaultOpen
           primary="Background"
+          icon={<LayersIcon />}
+          options={[{ label: "Color", defaultValue: "#000000", type: "color" }]}
+          secondaryAction={<VisibilityToggle available checked />}
         />
-        <Stack
-          direction="row"
-          paddingY={0.5}
-          paddingRight={2}
-          paddingLeft={6.5}
-          alignItems="center"
-          justifyContent="space-between"
-          gap={0.5}
-        >
-          <Typography variant="subtitle2" color="text.secondary" flexBasis="40%">
-            Color
-          </Typography>
-          <Box flex="auto">
-            <ColorPickerInput defaultValue="#000000" size="small" variant="filled" fullWidth />
-          </Box>
-        </Stack>
         <Divider />
         <Layer
-          divider
-          icon={
-            <Stack direction="row" style={{ marginLeft: "-20px" }}>
-              <ArrowRightIcon />
-              <MapIcon />
-            </Stack>
-          }
+          icon={<MapIcon />}
           primary="Map"
+          secondaryAction={<VisibilityToggle available checked />}
         />
+        <Divider />
         <Layer
-          icon={
-            <Stack direction="row" style={{ marginLeft: "-20px" }}>
-              <ArrowDownIcon />
-              <GridIcon />
-            </Stack>
-          }
+          defaultOpen
           primary="Grid"
+          icon={<GridIcon />}
+          options={[
+            { label: "Color", defaultValue: "#248eff", type: "color" },
+            { label: "Size", defaultValue: 10, type: "number" },
+            { label: "Subdivision", defaultValue: 9, type: "number" },
+          ]}
+          secondaryAction={<VisibilityToggle available checked />}
         />
-        <Stack gap={0.5} paddingY={0.5}>
-          <Stack
-            direction="row"
-            paddingRight={2}
-            paddingLeft={6.5}
-            alignItems="center"
-            justifyContent="space-between"
-            gap={1}
-          >
-            <Typography variant="subtitle2" color="text.secondary" flexBasis="40%">
-              Color
-            </Typography>
-            <Box flex="auto">
-              <ColorPickerInput defaultValue="#248eff" size="small" variant="filled" fullWidth />
-            </Box>
-          </Stack>
-          <Stack
-            direction="row"
-            paddingRight={2}
-            paddingLeft={6.5}
-            alignItems="center"
-            justifyContent="space-between"
-            gap={1}
-          >
-            <Typography variant="subtitle2" color="text.secondary" flexBasis="40%">
-              Size
-            </Typography>
-            <Box flex="auto">
-              <NumberInput defaultValue={10} size="small" variant="filled" fullWidth />
-            </Box>
-          </Stack>
-          <Stack
-            direction="row"
-            paddingRight={2}
-            paddingLeft={6.5}
-            alignItems="center"
-            justifyContent="space-between"
-            gap={1}
-          >
-            <Typography variant="subtitle2" color="text.secondary" flexBasis="40%">
-              Subdivisions
-            </Typography>
-            <Box flex="auto">
-              <NumberInput defaultValue={9} size="small" variant="filled" fullWidth />
-            </Box>
-          </Stack>
-        </Stack>
         <Divider />
         <Layer
-          icon={
-            <Stack direction="row" style={{ marginLeft: "-20px" }}>
-              <ArrowDownIcon />
-              <CubeIcon />
-            </Stack>
-          }
           primary="3D Model"
+          icon={<CubeIcon />}
+          options={[{ label: "Color", defaultValue: "#8166E8bb", type: "color" }]}
+          secondaryAction={<VisibilityToggle available checked />}
         />
-        <Stack gap={0.5} paddingY={0.5}>
-          <Stack
-            direction="row"
-            paddingRight={2}
-            paddingLeft={6.5}
-            alignItems="center"
-            justifyContent="space-between"
-            gap={1}
-          >
-            <Typography variant="subtitle2" color="text.secondary" flexBasis="40%">
-              Color
-            </Typography>
-            <Box flex="auto">
-              <ColorPickerInput defaultValue="#8166E8bb" size="small" variant="filled" fullWidth />
-            </Box>
-          </Stack>
-        </Stack>
         <Divider />
         <Layer
-          icon={
-            <Stack direction="row" style={{ marginLeft: "-20px" }}>
-              <ArrowDownIcon />
-              <CubeIcon />
-            </Stack>
-          }
           primary="Pose"
+          icon={<CubeIcon />}
+          options={[
+            { label: "Color", defaultValue: "#ffffff", type: "color" },
+            { label: "Shaft length", defaultValue: 1.5, type: "number" },
+            { label: "Shaft width", defaultValue: 1.5, type: "number" },
+            { label: "Head length", defaultValue: 2, type: "number" },
+            { label: "Head width", defaultValue: 2, type: "number" },
+          ]}
+          secondaryAction={<VisibilityToggle available checked />}
         />
-        <Stack gap={0.5} paddingY={0.5}>
-          <Stack
-            direction="row"
-            paddingRight={2}
-            paddingLeft={6.5}
-            alignItems="center"
-            justifyContent="space-between"
-            gap={1}
-          >
-            <Typography variant="subtitle2" color="text.secondary" flexBasis="40%">
-              Color
-            </Typography>
-            <Box flex="auto">
-              <ColorPickerInput defaultValue="#ffffff" size="small" variant="filled" fullWidth />
-            </Box>
-          </Stack>
-          <Stack
-            direction="row"
-            paddingRight={2}
-            paddingLeft={6.5}
-            alignItems="center"
-            justifyContent="space-between"
-            gap={1}
-          >
-            <Typography variant="subtitle2" color="text.secondary" flexBasis="40%">
-              Shaft length
-            </Typography>
-            <Box flex="auto">
-              <NumberInput defaultValue={1.5} size="small" variant="filled" fullWidth />
-            </Box>
-          </Stack>
-          <Stack
-            direction="row"
-            paddingRight={2}
-            paddingLeft={6.5}
-            alignItems="center"
-            justifyContent="space-between"
-            gap={1}
-          >
-            <Typography variant="subtitle2" color="text.secondary" flexBasis="40%">
-              Shaft width
-            </Typography>
-            <Box flex="auto">
-              <NumberInput defaultValue={1.5} size="small" variant="filled" fullWidth />
-            </Box>
-          </Stack>
-          <Stack
-            direction="row"
-            paddingRight={2}
-            paddingLeft={6.5}
-            alignItems="center"
-            justifyContent="space-between"
-            gap={1}
-          >
-            <Typography variant="subtitle2" color="text.secondary" flexBasis="40%">
-              Head length
-            </Typography>
-            <Box flex="auto">
-              <NumberInput defaultValue={2} size="small" variant="filled" fullWidth />
-            </Box>
-          </Stack>
-          <Stack
-            direction="row"
-            paddingRight={2}
-            paddingLeft={6.5}
-            alignItems="center"
-            justifyContent="space-between"
-            gap={1}
-          >
-            <Typography variant="subtitle2" color="text.secondary" flexBasis="40%">
-              Head width
-            </Typography>
-            <Box flex="auto">
-              <NumberInput defaultValue={2} size="small" variant="filled" fullWidth />
-            </Box>
-          </Stack>
-        </Stack>
         <Divider />
         <LayerGroup
           divider
           primary="TF"
+          secondaryAction={<VisibilityToggle available checked />}
           items={[
             "/map",
             "/tf",
@@ -369,12 +203,14 @@ export function LayerList(): JSX.Element {
           ].map((i) => ({
             key: i,
             primary: i,
+            secondaryAction: <VisibilityToggle available checked />,
           }))}
         />
         <LayerGroup
           divider
           defaultOpen
           primary="Topics"
+          secondaryAction={<VisibilityToggle available checked />}
           items={[
             "/map",
             "/semantic_map",
@@ -392,172 +228,57 @@ export function LayerList(): JSX.Element {
                   key,
                   primary: key,
                   defaultOpen: true,
+                  secondaryAction: <VisibilityToggle available checked />,
                   items: [
                     {
                       key: "/semantic_map/centerline",
                       primary: "centerline",
+                      secondaryAction: <VisibilityToggle available checked />,
                     },
                   ],
                 }
               : {
                   key,
                   primary: key,
+                  secondaryAction: <VisibilityToggle available checked />,
                 },
           )}
         />
         <Layer
           primary="/LIDAR_TOP"
-          icon={
-            <Stack direction="row" style={{ marginLeft: "-20px" }}>
-              <ArrowDownIcon />
-              <ScanIcon />
-            </Stack>
-          }
+          icon={<ScanIcon />}
+          secondaryAction={<VisibilityToggle available checked />}
+          options={[
+            { label: "Point size", defaultValue: 2, type: "number" },
+            {
+              label: "Point shape",
+              defaultValue: "Circle",
+              type: "enum",
+              values: ["Circle", "Square"],
+            },
+            { label: "Decay time (seconds)", defaultValue: 0, type: "number" },
+            {
+              label: "Color by",
+              defaultValue: "Point data",
+              type: "enum",
+              values: ["Flat", "Point data"],
+            },
+            {
+              label: "Min value",
+              type: "number",
+              placeholder: "auto",
+            },
+            {
+              label: "Max value",
+              type: "number",
+              placeholder: "auto",
+            },
+            {
+              label: "Color scale",
+              type: "gradient",
+            },
+          ]}
         />
-        <Stack gap={0.5} paddingY={0.5}>
-          <Stack
-            direction="row"
-            paddingRight={2}
-            paddingLeft={6.5}
-            alignItems="center"
-            justifyContent="space-between"
-            gap={1}
-          >
-            <Typography variant="subtitle2" color="text.secondary" flexBasis="40%">
-              Point size
-            </Typography>
-            <Box flex="auto">
-              <NumberInput defaultValue={2} size="small" variant="filled" fullWidth />
-            </Box>
-          </Stack>
-          <Stack
-            direction="row"
-            paddingRight={2}
-            paddingLeft={6.5}
-            alignItems="center"
-            justifyContent="space-between"
-            gap={1}
-          >
-            <Typography variant="subtitle2" color="text.secondary" flexBasis="40%">
-              Point shape
-            </Typography>
-            <Box flex="auto">
-              <ToggleButtonGroup color="primary" fullWidth value="circle" size="small">
-                <StyledToggleButton value="circle">
-                  <SvgIcon fontSize="small">
-                    <circle cx={12} cy={12} r={8} />
-                  </SvgIcon>
-                </StyledToggleButton>
-                <StyledToggleButton value="square">
-                  <SvgIcon fontSize="small">
-                    <rect x={4} y={4} height={16} width={16} />
-                  </SvgIcon>
-                </StyledToggleButton>
-              </ToggleButtonGroup>
-            </Box>
-          </Stack>
-          <Stack
-            direction="row"
-            paddingRight={2}
-            paddingLeft={6.5}
-            alignItems="center"
-            justifyContent="space-between"
-            gap={1}
-          >
-            <Typography variant="subtitle2" color="text.secondary" flexBasis="40%">
-              Decay time (seconds)
-            </Typography>
-            <Box flex="auto">
-              <NumberInput defaultValue={0} size="small" variant="filled" fullWidth />
-            </Box>
-          </Stack>
-          <Stack
-            direction="row"
-            paddingRight={2}
-            paddingLeft={6.5}
-            alignItems="center"
-            justifyContent="space-between"
-            gap={1}
-          >
-            <Typography variant="subtitle2" color="text.secondary" flexBasis="40%">
-              Color
-            </Typography>
-            <Box flex="auto">
-              <ToggleButtonGroup color="primary" fullWidth value="point_data" size="small">
-                <StyledToggleButton value="flat">Flat</StyledToggleButton>
-                <StyledToggleButton value="point_data">Point data</StyledToggleButton>
-              </ToggleButtonGroup>
-            </Box>
-          </Stack>
-          <Stack
-            direction="row"
-            paddingRight={2}
-            paddingLeft={6.5}
-            alignItems="center"
-            justifyContent="space-between"
-            gap={1}
-          >
-            <Typography variant="subtitle2" color="text.secondary" flexBasis="40%">
-              Min value
-            </Typography>
-            <Box flex="auto">
-              <NumberInput placeholder="auto" size="small" variant="filled" fullWidth />
-            </Box>
-          </Stack>
-          <Stack
-            direction="row"
-            paddingRight={2}
-            paddingLeft={6.5}
-            alignItems="center"
-            justifyContent="space-between"
-            gap={1}
-          >
-            <Typography variant="subtitle2" color="text.secondary" flexBasis="40%">
-              Max value
-            </Typography>
-            <Box flex="auto">
-              <NumberInput placeholder="auto" size="small" variant="filled" fullWidth />
-            </Box>
-          </Stack>
-          <Stack
-            direction="row"
-            paddingRight={2}
-            paddingLeft={6.5}
-            alignItems="center"
-            justifyContent="space-between"
-            gap={1}
-          >
-            <Typography variant="subtitle2" color="text.secondary" flexBasis="40%">
-              Color scale
-            </Typography>
-            <Box flex="auto">
-              <ButtonBase
-                sx={{
-                  width: "100%",
-                  border: "1px solid",
-                  borderColor: "divider",
-                  bgcolor: "actions.hover",
-                }}
-              >
-                <Stack direction="row" padding={0.375} gap={0.5} sx={{ width: "100%" }}>
-                  <Box
-                    flex="auto"
-                    paddingBottom={2.5}
-                    sx={{
-                      backgroundImage: `linear-gradient(to right, ${[
-                        "#3887F9",
-                        "#2FE5AD",
-                        "#96FA50",
-                        "#FFB827",
-                        "#E34613",
-                      ].join(",")})`,
-                    }}
-                  />
-                </Stack>
-              </ButtonBase>
-            </Box>
-          </Stack>
-        </Stack>
       </List>
     </Stack>
   );
