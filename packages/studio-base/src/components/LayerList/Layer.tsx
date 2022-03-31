@@ -4,7 +4,7 @@
 
 import ArrowDownIcon from "@mui/icons-material/ArrowDropDown";
 import ArrowRightIcon from "@mui/icons-material/ArrowRight";
-import DataObjectIcon from "@mui/icons-material/DataObject";
+// import DataObjectIcon from "@mui/icons-material/DataObject";
 import LayerIcon from "@mui/icons-material/Layers";
 import {
   Collapse,
@@ -19,7 +19,7 @@ import {
   ToggleButtonGroup,
   Typography,
   styled as muiStyled,
-  IconButton,
+  // IconButton,
   MenuItem,
   Select,
   TextField,
@@ -28,7 +28,6 @@ import { Fragment, useState } from "react";
 import { ReactNode } from "react-markdown/lib/ast-to-react";
 
 import { ColorPickerInput } from "@foxglove/studio-base/components/LayerList/ColorPickerInput";
-import MessagePathInput from "@foxglove/studio-base/components/MessagePathSyntax/MessagePathInput";
 import Stack from "@foxglove/studio-base/components/Stack";
 
 import { ColorScalePicker } from "./ColorScalePicker";
@@ -103,7 +102,11 @@ export function Layer(props: LayerProps): JSX.Element {
       <StyledListItem {...rest} disablePadding>
         <ListItemButton
           onClick={(event) => {
-            properties.length > 0 ? setOpen(!open) : onClick(event);
+            if (properties.length > 0) {
+              setOpen(!open);
+            } else {
+              onClick(event);
+            }
           }}
         >
           <ListItemIcon>
@@ -122,7 +125,7 @@ export function Layer(props: LayerProps): JSX.Element {
         <Collapse in={open}>
           <LayerOptions>
             {properties.map((prop, idx) => (
-              <Fragment key={`${idx}.${prop.type}.${prop.label}`}>
+              <Fragment key={`${idx}.${prop.variant}.${prop.label}`}>
                 <Typography variant="subtitle2" color="text.secondary" noWrap title={prop.label}>
                   {prop.label}
                 </Typography>

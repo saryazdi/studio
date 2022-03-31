@@ -20,6 +20,8 @@ import {
   TextField,
   Typography,
   styled as muiStyled,
+  Checkbox,
+  CheckboxProps,
 } from "@mui/material";
 import { useState } from "react";
 
@@ -28,7 +30,6 @@ import {
   useMessagePipeline,
 } from "@foxglove/studio-base/components/MessagePipeline";
 import Stack from "@foxglove/studio-base/components/Stack";
-import VisibilityToggle from "@foxglove/studio-base/panels/ThreeDimensionalViz/TopicTree/VisibilityToggle";
 import { PlayerPresence } from "@foxglove/studio-base/players/types";
 
 import { Layer } from "./Layer";
@@ -58,6 +59,38 @@ const StyledAppBar = muiStyled(AppBar, { skipSx: true })(({ theme }) => ({
   borderBottom: `1px solid ${theme.palette.divider}`,
   padding: theme.spacing(1),
 }));
+
+const VisibilityToggleIcon = (props: CheckboxProps) => (
+  <Checkbox
+    defaultChecked
+    {...props}
+    icon={
+      <SvgIcon viewBox="0 0 16 16" color="disabled">
+        {/* Eye open */}
+        <path
+          fill="currentColor"
+          d="M13.508 7.801c.556-.527 1.036-1.134 1.422-1.801h-1.185C12.48 7.814 10.378 9 8 9 5.622 9 3.52 7.814 2.254 6H1.07c.386.667.866 1.274 1.421 1.801L.896 9.396l.708.707L3.26 8.446c.71.523 1.511.932 2.374 1.199l-.617 2.221.964.268.626-2.255C7.06 9.96 7.525 10 8 10c.475 0 .94-.041 1.392-.12l.626 2.254.964-.268-.617-2.221c.863-.267 1.663-.676 2.374-1.2l1.657 1.658.708-.707-1.595-1.595z"
+          fillRule="nonzero"
+        />
+      </SvgIcon>
+    }
+    checkedIcon={
+      <SvgIcon viewBox="0 0 16 16">
+        {/* Eye closed */}
+        <g fill="currentColor">
+          <path
+            d="M8 10c1.105 0 2-.895 2-2 0-1.105-.895-2-2-2-1.104 0-2 .895-2 2 0 1.105.896 2 2 2z"
+            fillRule="nonzero"
+          />
+          <path
+            d="M8 4c2.878 0 5.378 1.621 6.635 4-1.257 2.379-3.757 4-6.635 4-2.878 0-5.377-1.621-6.635-4C2.623 5.621 5.122 4 8 4zm0 7c-2.3 0-4.322-1.194-5.478-3C3.678 6.194 5.7 5 8 5c2.3 0 4.322 1.194 5.479 3C12.322 9.806 10.3 11 8 11z"
+            fillRule="evenodd"
+          />
+        </g>
+      </SvgIcon>
+    }
+  />
+);
 
 const selectPlayerPresence = ({ playerState }: MessagePipelineContext) => playerState.presence;
 
@@ -132,7 +165,7 @@ export function LayerList(): JSX.Element {
         <Layer
           icon={<AddIcon />}
           primary="Add layer"
-          secondaryAction={<VisibilityToggle available checked />}
+          secondaryAction={<VisibilityToggleIcon edge="end" color="default" />}
         />
         <Divider />
         <Layer
@@ -140,13 +173,14 @@ export function LayerList(): JSX.Element {
           primary="Background"
           icon={<LayersIcon />}
           properties={[{ label: "Color", defaultValue: "#000000", variant: "color" }]}
-          secondaryAction={<VisibilityToggle available checked />}
+          secondaryAction={<VisibilityToggleIcon edge="end" color="default" />}
         />
         <Divider />
         <Layer
+          defaultOpen
           icon={<MapIcon />}
           primary="Map"
-          secondaryAction={<VisibilityToggle available checked />}
+          secondaryAction={<VisibilityToggleIcon edge="end" color="default" />}
           properties={[
             {
               label: "Message path",
@@ -191,17 +225,19 @@ export function LayerList(): JSX.Element {
             { label: "Size", defaultValue: 10, variant: "number" },
             { label: "Subdivision", defaultValue: 9, variant: "number" },
           ]}
-          secondaryAction={<VisibilityToggle available checked />}
+          secondaryAction={<VisibilityToggleIcon edge="end" color="default" />}
         />
         <Divider />
         <Layer
+          defaultOpen
           primary="3D Model"
           icon={<CubeIcon />}
           properties={[{ label: "Color", defaultValue: "#8166E8bb", variant: "color" }]}
-          secondaryAction={<VisibilityToggle available checked />}
+          secondaryAction={<VisibilityToggleIcon edge="end" color="default" />}
         />
         <Divider />
         <Layer
+          defaultOpen
           primary="Pose"
           icon={<CubeIcon />}
           properties={[
@@ -211,13 +247,12 @@ export function LayerList(): JSX.Element {
             { label: "Head length", defaultValue: 2, variant: "number" },
             { label: "Head width", defaultValue: 2, variant: "number" },
           ]}
-          secondaryAction={<VisibilityToggle available checked />}
+          secondaryAction={<VisibilityToggleIcon edge="end" color="default" />}
         />
         <Divider />
         <LayerGroup
-          divider
           primary="TF"
-          secondaryAction={<VisibilityToggle available checked />}
+          secondaryAction={<VisibilityToggleIcon edge="end" color="default" />}
           items={[
             "/map",
             "/tf",
@@ -233,17 +268,17 @@ export function LayerList(): JSX.Element {
             "/CAM_BACK_RIGHT/camera_info",
             "/CAM_BACK/camera_info",
             "/CAM_BACK_LEFT/camera_info",
-          ].map((i) => ({
-            key: i,
-            primary: i,
-            secondaryAction: <VisibilityToggle available checked />,
+          ].map((key) => ({
+            key,
+            primary: key,
+            secondaryAction: <VisibilityToggleIcon edge="end" color="default" />,
           }))}
         />
+        <Divider />
         <LayerGroup
-          divider
           defaultOpen
           primary="Topics"
-          secondaryAction={<VisibilityToggle available checked />}
+          secondaryAction={<VisibilityToggleIcon edge="end" color="default" />}
           items={[
             "/map",
             "/semantic_map",
@@ -261,26 +296,27 @@ export function LayerList(): JSX.Element {
                   key,
                   primary: key,
                   defaultOpen: true,
-                  secondaryAction: <VisibilityToggle available checked />,
+                  secondaryAction: <VisibilityToggleIcon edge="end" color="default" />,
                   items: [
                     {
                       key: "/semantic_map/centerline",
                       primary: "centerline",
-                      secondaryAction: <VisibilityToggle available checked />,
+                      secondaryAction: <VisibilityToggleIcon edge="end" color="default" />,
                     },
                   ],
                 }
               : {
                   key,
                   primary: key,
-                  secondaryAction: <VisibilityToggle available checked />,
+                  secondaryAction: <VisibilityToggleIcon edge="end" color="default" />,
                 },
           )}
         />
+        <Divider />
         <Layer
           primary="/LIDAR_TOP"
           icon={<ScanIcon />}
-          secondaryAction={<VisibilityToggle available checked />}
+          secondaryAction={<VisibilityToggleIcon edge="end" color="default" />}
           properties={[
             { label: "Point size", defaultValue: 2, variant: "number" },
             {

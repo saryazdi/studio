@@ -6,7 +6,7 @@ import ArrowDownIcon from "@mui/icons-material/ArrowDropDown";
 import ArrowRightIcon from "@mui/icons-material/ArrowRight";
 import FolderIcon from "@mui/icons-material/Folder";
 import FolderOpenIcon from "@mui/icons-material/FolderOpen";
-import { Collapse, Divider, List, styled as muiStyled } from "@mui/material";
+import { Collapse, List, styled as muiStyled } from "@mui/material";
 import { useState } from "react";
 
 import Stack from "@foxglove/studio-base/components/Stack";
@@ -19,6 +19,7 @@ export type Item = {
   primary?: LayerProps["primary"];
   items?: Item[];
   secondaryAction?: LayerProps["secondaryAction"];
+  properties?: LayerProps["properties"];
 };
 
 export type LayerGroupProps = {
@@ -29,6 +30,7 @@ export type LayerGroupProps = {
   primary?: LayerProps["primary"];
   secondaryAction?: LayerProps["secondaryAction"];
   items?: Item[];
+  properties?: LayerProps["properties"];
 };
 
 const StyledLayer = muiStyled(Layer)(({ theme }) => ({
@@ -50,7 +52,7 @@ const StyledLayer = muiStyled(Layer)(({ theme }) => ({
 }));
 
 export function LayerSubGroup(props: Omit<LayerGroupProps, "icon" | "openIcon">): JSX.Element {
-  const { defaultOpen = false, primary, secondaryAction, items = [] } = props;
+  const { defaultOpen = false, primary, secondaryAction, properties, items = [] } = props;
   const [open, setOpen] = useState<boolean>(defaultOpen);
   const textProps = { primary };
 
@@ -60,6 +62,7 @@ export function LayerSubGroup(props: Omit<LayerGroupProps, "icon" | "openIcon">)
         onClick={() => setOpen(!open)}
         icon={open ? <ArrowDownIcon /> : <ArrowRightIcon />}
         secondaryAction={secondaryAction}
+        properties={properties}
         {...textProps}
       />
       {items.length > 0 && (
@@ -88,6 +91,7 @@ export function LayerGroup(props: LayerGroupProps): JSX.Element {
     openIcon = <FolderOpenIcon />,
     secondaryAction,
     primary,
+    properties,
     items = [],
   } = props;
   const [open, setOpen] = useState<boolean>(defaultOpen);
@@ -96,8 +100,8 @@ export function LayerGroup(props: LayerGroupProps): JSX.Element {
     <>
       <Layer
         onClick={() => setOpen(!open)}
-        divider
         secondaryAction={secondaryAction}
+        properties={properties}
         icon={
           <Stack direction="row" style={{ marginLeft: "-20px" }}>
             {open ? <ArrowDownIcon /> : <ArrowRightIcon />}
@@ -130,7 +134,6 @@ export function LayerGroup(props: LayerGroupProps): JSX.Element {
               </>
             ))}
           </List>
-          {props.divider === true && <Divider />}
         </Collapse>
       )}
     </>
