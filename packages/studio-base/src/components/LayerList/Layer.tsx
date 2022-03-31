@@ -89,7 +89,7 @@ const StyledToggleButton = muiStyled(ToggleButton)(({ theme }) => ({
   },
 }));
 
-const LayerOptions = muiStyled("div")(({ theme }) => ({
+const LayerOptions = muiStyled("div")<{ visible: boolean }>(({ theme, visible }) => ({
   display: "grid",
   gridTemplateColumns: "1fr minmax(192px, 40%)",
   gridAutoRows: 30,
@@ -97,6 +97,7 @@ const LayerOptions = muiStyled("div")(({ theme }) => ({
   columnGap: theme.spacing(1.5),
   rowGap: theme.spacing(0.25),
   alignItems: "center",
+  opacity: visible ? 1 : 0.6,
 }));
 
 const VisibilityToggleIcon = (props: CheckboxProps) => (
@@ -130,6 +131,73 @@ const VisibilityToggleIcon = (props: CheckboxProps) => (
     }
   />
 );
+
+export function LayerOption({
+  variant,
+  defaultValue,
+  placeholder,
+  options,
+}: LayerProperty): JSX.Element {
+  const control = () => {
+    switch (variant) {
+      case "number":
+        return (
+          <NumberInput
+            size="small"
+            variant="filled"
+            defaultValue={defaultValue}
+            placeholder={placeholder}
+            fullWidth
+          />
+        );
+      case "string":
+        return <TextField variant="filled" defaultValue={defaultValue} size="small" fullWidth />;
+      case "select":
+        return options != undefined ? (
+          <Select size="small" fullWidth variant="filled" defaultValue={defaultValue}>
+            {options.map((opt) => (
+              <MenuItem key={opt} value={opt}>
+                {opt}
+              </MenuItem>
+            ))}
+          </Select>
+        ) : (
+          <>No options</>
+        );
+      case "color":
+        return (
+          <ColorPickerInput
+            defaultValue={defaultValue?.toString()}
+            size="small"
+            variant="filled"
+            fullWidth
+          />
+        );
+      case "toggle":
+        return options != undefined ? (
+          <StyledToggleButtonGroup fullWidth value={defaultValue} size="small">
+            {options.map((opt) => (
+              <StyledToggleButton key={opt} value={opt}>
+                {opt}
+              </StyledToggleButton>
+            ))}
+          </StyledToggleButtonGroup>
+        ) : (
+          <>No options</>
+        );
+      case "gradient":
+        return <ColorScalePicker color="inherit" size="small" />;
+      case "messagePath":
+        return <>{/* TODO: Message path input */}</>;
+      case "boolean":
+        return <>{/* TODO: Boolean */}</>;
+      default:
+        return <></>;
+    }
+  };
+
+  return <Stack direction="row">{control()}</Stack>;
+}
 
 export function Layer(props: LayerProps): JSX.Element {
   const {
@@ -194,7 +262,7 @@ export function Layer(props: LayerProps): JSX.Element {
       </StyledListItem>
       {properties.length > 0 && (
         <Collapse in={open}>
-          <LayerOptions>
+          <LayerOptions visible={visible}>
             {properties.map((prop, idx) => (
               <Fragment key={`${idx}.${prop.variant}.${prop.label}`}>
                 <Typography variant="subtitle2" color="text.secondary" noWrap title={prop.label}>
@@ -203,65 +271,7 @@ export function Layer(props: LayerProps): JSX.Element {
                 {/* <IconButton edge="end" size="small">
                   <DataObjectIcon fontSize="small" />
                 </IconButton> */}
-                <div>
-                  {prop.variant === "number" && (
-                    <NumberInput
-                      size="small"
-                      variant="filled"
-                      defaultValue={prop.defaultValue}
-                      placeholder={prop.placeholder}
-                      fullWidth
-                    />
-                  )}
-                  {prop.variant === "toggle" &&
-                    (prop.options != undefined ? (
-                      <StyledToggleButtonGroup fullWidth value={prop.defaultValue} size="small">
-                        {prop.options.map((opt) => (
-                          <StyledToggleButton key={opt} value={opt}>
-                            {opt}
-                          </StyledToggleButton>
-                        ))}
-                      </StyledToggleButtonGroup>
-                    ) : (
-                      <>No options</>
-                    ))}
-                  {prop.variant === "select" &&
-                    (prop.options != undefined ? (
-                      <Select
-                        size="small"
-                        fullWidth
-                        variant="filled"
-                        defaultValue={prop.defaultValue}
-                      >
-                        {prop.options.map((opt) => (
-                          <MenuItem key={opt} value={opt}>
-                            {opt}
-                          </MenuItem>
-                        ))}
-                      </Select>
-                    ) : (
-                      <>No options</>
-                    ))}
-                  {prop.variant === "messagePath" && <>Message path input</>}
-                  {prop.variant === "string" && (
-                    <TextField
-                      variant="filled"
-                      defaultValue={prop.defaultValue}
-                      size="small"
-                      fullWidth
-                    />
-                  )}
-                  {prop.variant === "boolean" && <>TODO: Boolean</>}
-                  {prop.variant === "gradient" && <ColorScalePicker color="inherit" size="small" />}
-                  {prop.variant === "color" && (
-                    <ColorPickerInput
-                      defaultValue={prop.defaultValue?.toString()}
-                      size="small"
-                      variant="filled"
-                      fullWidth
-                    />
-                  )}
-                </div>
+                <LayerOption {...prop} />
               </Fragment>
             ))}
           </LayerOptions>
