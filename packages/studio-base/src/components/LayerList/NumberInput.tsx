@@ -37,11 +37,14 @@ const StyledIconButton = muiStyled(IconButton)({
 });
 
 export function NumberInput(props: TextFieldProps): JSX.Element {
+  const { InputProps } = props;
+
   return (
     <StyledTextField
       {...props}
       type="number"
       InputProps={{
+        ...InputProps,
         startAdornment: (
           <StyledIconButton size="small" edge="start">
             <ChevronLeftIcon fontSize="small" />
