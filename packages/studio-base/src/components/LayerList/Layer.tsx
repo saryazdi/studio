@@ -4,7 +4,6 @@
 
 import ArrowDownIcon from "@mui/icons-material/ArrowDropDown";
 import ArrowRightIcon from "@mui/icons-material/ArrowRight";
-// import DataObjectIcon from "@mui/icons-material/DataObject";
 import LayerIcon from "@mui/icons-material/Layers";
 import {
   Collapse,
@@ -133,6 +132,7 @@ const VisibilityToggleIcon = (props: CheckboxProps) => (
 );
 
 export function LayerOption({
+  label,
   variant,
   defaultValue,
   placeholder,
@@ -196,7 +196,14 @@ export function LayerOption({
     }
   };
 
-  return <Stack direction="row">{control()}</Stack>;
+  return (
+    <>
+      <Typography variant="subtitle2" color="text.secondary" noWrap title={label}>
+        {label}
+      </Typography>
+      {control()}
+    </>
+  );
 }
 
 export function Layer(props: LayerProps): JSX.Element {
@@ -264,15 +271,7 @@ export function Layer(props: LayerProps): JSX.Element {
         <Collapse in={open}>
           <LayerOptions visible={visible}>
             {properties.map((prop, idx) => (
-              <Fragment key={`${idx}.${prop.variant}.${prop.label}`}>
-                <Typography variant="subtitle2" color="text.secondary" noWrap title={prop.label}>
-                  {prop.label}
-                </Typography>
-                {/* <IconButton edge="end" size="small">
-                  <DataObjectIcon fontSize="small" />
-                </IconButton> */}
-                <LayerOption {...prop} />
-              </Fragment>
+              <LayerOption key={`${idx}.${prop.variant}.${prop.label}`} {...prop} />
             ))}
           </LayerOptions>
         </Collapse>
