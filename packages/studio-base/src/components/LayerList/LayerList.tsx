@@ -128,16 +128,16 @@ export function LayerList(): JSX.Element {
       </StyledAppBar>
       <List disablePadding dense>
         {/* TODO: I am mock data */}
-        <Layer icon={<AddIcon />} primary="Add layer" />
-        <Divider />
+        <Layer divider icon={<AddIcon />} primary="Add layer" />
         <Layer
+          divider
           defaultOpen
           primary="Background"
           icon={<LayersIcon />}
           properties={[{ label: "Color", defaultValue: "#000000", variant: "color" }]}
         />
-        <Divider />
         <Layer
+          divider
           defaultOpen
           icon={<MapIcon />}
           primary="Map"
@@ -175,8 +175,8 @@ export function LayerList(): JSX.Element {
             },
           ]}
         />
-        <Divider />
         <Layer
+          divider
           defaultOpen
           primary="Grid"
           icon={<GridIcon />}
@@ -186,15 +186,15 @@ export function LayerList(): JSX.Element {
             { label: "Subdivision", defaultValue: 9, variant: "number" },
           ]}
         />
-        <Divider />
         <Layer
+          divider
           defaultOpen
           primary="3D Model"
           icon={<CubeIcon />}
           properties={[{ label: "Color", defaultValue: "#8166E8bb", variant: "color" }]}
         />
-        <Divider />
         <Layer
+          divider
           defaultOpen
           primary="Pose"
           icon={<CubeIcon />}
@@ -206,8 +206,8 @@ export function LayerList(): JSX.Element {
             { label: "Head width", defaultValue: 2, variant: "number" },
           ]}
         />
-        <Divider />
         <LayerGroup
+          divider
           primary="TF"
           items={[
             "/map",
@@ -229,8 +229,8 @@ export function LayerList(): JSX.Element {
             primary: key,
           }))}
         />
-        <Divider />
         <LayerGroup
+          divider
           defaultOpen
           primary="Topics"
           items={[
@@ -242,61 +242,61 @@ export function LayerList(): JSX.Element {
             "/RADAR_FRONT_RIGHT",
             "/RADAR_BACK_LEFT",
             "/RADAR_BACK_RIGHT",
+            "/LIDAR_TOP",
             "/markers",
             "/annotations",
-          ].map((key) =>
-            key === "/semantic_map"
-              ? {
-                  key,
-                  primary: key,
-                  defaultOpen: true,
-                  items: [
-                    {
-                      key: "/semantic_map/centerline",
-                      primary: "centerline",
-                    },
-                  ],
-                }
-              : {
-                  key,
-                  primary: key,
-                },
+          ].map(
+            (key) =>
+              (key === "/LIDAR_TOP" && {
+                key,
+                primary: key,
+                defaultOpen: true,
+                properties: [
+                  { label: "Point size", defaultValue: 2, variant: "number" },
+                  {
+                    label: "Point shape",
+                    defaultValue: "Circle",
+                    variant: "toggle",
+                    options: ["Circle", "Square"],
+                  },
+                  { label: "Decay time (seconds)", defaultValue: 0, variant: "number" },
+                  {
+                    label: "Color by",
+                    defaultValue: "Point data",
+                    variant: "toggle",
+                    options: ["Flat", "Point data"],
+                  },
+                  {
+                    label: "Min value",
+                    variant: "number",
+                    placeholder: "auto",
+                  },
+                  {
+                    label: "Max value",
+                    variant: "number",
+                    placeholder: "auto",
+                  },
+                  {
+                    label: "Color scale",
+                    variant: "gradient",
+                  },
+                ],
+              }) ||
+              (key === "/semantic_map" && {
+                key,
+                primary: key,
+                defaultOpen: true,
+                items: [
+                  {
+                    key: "/semantic_map/centerline",
+                    primary: "centerline",
+                  },
+                ],
+              }) || {
+                key,
+                primary: key,
+              },
           )}
-        />
-        <Divider />
-        <Layer
-          primary="/LIDAR_TOP"
-          icon={<ScanIcon />}
-          properties={[
-            { label: "Point size", defaultValue: 2, variant: "number" },
-            {
-              label: "Point shape",
-              defaultValue: "Circle",
-              variant: "toggle",
-              options: ["Circle", "Square"],
-            },
-            { label: "Decay time (seconds)", defaultValue: 0, variant: "number" },
-            {
-              label: "Color by",
-              defaultValue: "Point data",
-              variant: "toggle",
-              options: ["Flat", "Point data"],
-            },
-            {
-              label: "Min value",
-              variant: "number",
-              placeholder: "auto",
-            },
-            {
-              label: "Max value",
-              variant: "number",
-              placeholder: "auto",
-            },
-            {
-              label: "Color scale",
-              variant: "gradient",
-            },
-          ]}
         />
       </List>
     </Stack>

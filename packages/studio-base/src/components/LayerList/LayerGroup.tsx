@@ -6,7 +6,7 @@ import ArrowDownIcon from "@mui/icons-material/ArrowDropDown";
 import ArrowRightIcon from "@mui/icons-material/ArrowRight";
 import FolderIcon from "@mui/icons-material/Folder";
 import FolderOpenIcon from "@mui/icons-material/FolderOpen";
-import { Collapse, List, styled as muiStyled } from "@mui/material";
+import { Collapse, Divider, List, styled as muiStyled } from "@mui/material";
 import { useState } from "react";
 
 import Stack from "@foxglove/studio-base/components/Stack";
@@ -86,6 +86,7 @@ export function LayerSubGroup(props: Omit<LayerGroupProps, "icon" | "openIcon">)
 
 export function LayerGroup(props: LayerGroupProps): JSX.Element {
   const {
+    divider = false,
     defaultOpen = false,
     icon = <FolderIcon />,
     openIcon = <FolderOpenIcon />,
@@ -129,6 +130,7 @@ export function LayerGroup(props: LayerGroupProps): JSX.Element {
                     key={item.key}
                     primary={item.primary}
                     secondaryAction={item.secondaryAction}
+                    properties={item.properties}
                   />
                 )}
               </>
@@ -136,6 +138,7 @@ export function LayerGroup(props: LayerGroupProps): JSX.Element {
           </List>
         </Collapse>
       )}
+      {divider && <Divider />}
     </>
   );
 }

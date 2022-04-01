@@ -24,9 +24,9 @@ import {
   SvgIcon,
   Select,
   TextField,
+  Divider,
 } from "@mui/material";
 import { ChangeEvent, useState } from "react";
-import { ReactNode } from "react-markdown/lib/ast-to-react";
 
 import { ColorPickerInput } from "@foxglove/studio-base/components/LayerList/ColorPickerInput";
 import Stack from "@foxglove/studio-base/components/Stack";
@@ -210,6 +210,7 @@ export function Layer(props: LayerProps): JSX.Element {
   const {
     primary,
     icon,
+    divider = false,
     defaultOpen = false,
     disableIcon = false,
     onClick = () => {},
@@ -252,7 +253,11 @@ export function Layer(props: LayerProps): JSX.Element {
           }}
         >
           <ListItemIcon>
-            <Stack direction="row" sx={{ marginLeft: properties.length > 0 && -2.5 }}>
+            <Stack
+              direction="row"
+              justifyContent="flex-end"
+              sx={{ marginLeft: properties.length > 0 && !disableIcon && -2.5 }}
+            >
               {properties.length > 0 && <>{open ? <ArrowDownIcon /> : <ArrowRightIcon />}</>}
               {(!disableIcon && icon) ?? <LayerIcon />}
             </Stack>
@@ -268,14 +273,17 @@ export function Layer(props: LayerProps): JSX.Element {
         </ListItemButton>
       </StyledListItem>
       {properties.length > 0 && (
-        <Collapse in={open}>
-          <LayerOptions visible={visible}>
-            {properties.map((prop, idx) => (
-              <LayerOption key={`${idx}.${prop.variant}.${prop.label}`} {...prop} />
-            ))}
-          </LayerOptions>
-        </Collapse>
+        <>
+          <Collapse in={open}>
+            <LayerOptions visible={visible}>
+              {properties.map((prop, idx) => (
+                <LayerOption key={`${idx}.${prop.variant}.${prop.label}`} {...prop} />
+              ))}
+            </LayerOptions>
+          </Collapse>
+        </>
       )}
+      {divider && <Divider />}
     </>
   );
 }
