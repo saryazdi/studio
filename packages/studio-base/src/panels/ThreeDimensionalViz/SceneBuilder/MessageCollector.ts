@@ -131,8 +131,7 @@ export default class MessageCollector {
     const result: ObjectWithInteractionData[] = [];
     this.markers.forEach((marker, key) => {
       // Check if the marker has a lifetime and should be deleted
-      const messageStamp =
-        (marker.message as { header?: { stamp?: Time } }).header?.stamp ?? marker.receiveTime;
+      const messageStamp = marker.receiveTime;
       if (MessageCollector.markerIsExpired(marker.lifetime, messageStamp, this.clock)) {
         this.markers.delete(key);
       } else {
