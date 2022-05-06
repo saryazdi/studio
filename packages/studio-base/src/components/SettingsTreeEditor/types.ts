@@ -57,9 +57,11 @@ export type SettingsTreeNode = {
   children?: SettingsTreeChildren;
 
   /**
-   * Set to collapsed if the node should be initially collapsed.
+   * Set to a non-undefined value to control the expanded state manually.
+   * If this is undefined the settings UI will maintain the expanded state.
+   * By default all nodes are expanded.
    */
-  defaultExpansionState?: "collapsed" | "expanded";
+  expanded?: boolean;
 
   /**
    * Field inputs attached directly to this node.

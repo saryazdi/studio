@@ -7,7 +7,7 @@ import ArrowRightIcon from "@mui/icons-material/ArrowRight";
 import LayerIcon from "@mui/icons-material/Layers";
 import SettingsIcon from "@mui/icons-material/Settings";
 import { Collapse, Divider, ListItemProps, styled as muiStyled, Typography } from "@mui/material";
-import { useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { DeepReadonly } from "ts-essentials";
 
 import { FieldEditor } from "./FieldEditor";
@@ -16,9 +16,9 @@ import { SettingsTreeAction, SettingsTreeNode } from "./types";
 
 export type NodeEditorProps = {
   actionHandler: (action: SettingsTreeAction) => void;
-  defaultOpen?: boolean;
   disableIcon?: boolean;
   divider?: ListItemProps["divider"];
+  expanded?: boolean;
   group?: string;
   icon?: JSX.Element;
   path: readonly string[];
@@ -67,19 +67,39 @@ const NodeHeaderToggle = muiStyled("div")<{ indent: number }>(({ theme, indent }
 });
 
 function NodeEditorComponent(props: NodeEditorProps): JSX.Element {
-  const { actionHandler, defaultOpen = true, disableIcon = false, icon, settings = {} } = props;
-  const [open, setOpen] = useState(defaultOpen);
+  const {
+    actionHandler,
+    expanded: propsExpanded,
+    disableIcon = false,
+    icon,
+    path,
+    settings = {},
+  } = props;
+  const [localExpanded, setLocalExpanded] = useState(propsExpanded ?? true);
 
   const indent = props.path.length;
   const allowVisibilityToggle = props.settings?.visible != undefined;
   const visible = props.settings?.visible !== false;
 
+  const expanded = propsExpanded ?? localExpanded;
+
   const toggleVisibility = () => {
     actionHandler({
       action: "update",
-      payload: { input: "boolean", path: [...props.path, "visible"], value: !visible },
+      payload: { input: "boolean", path: [...path, "visible"], value: !visible },
     });
   };
+
+  const toggleExpanded = useCallback(() => {
+    if (propsExpanded != undefined) {
+      actionHandler({
+        action: "update",
+        payload: { input: "boolean", path: [...path, "expanded"], value: !propsExpanded },
+      });
+    } else {
+      setLocalExpanded((oldValue) => !oldValue);
+    }
+  }, [actionHandler, propsExpanded, path]);
 
   const { fields, children } = settings;
   const hasProperties = fields != undefined || children != undefined;
@@ -100,7 +120,7 @@ function NodeEditorComponent(props: NodeEditorProps): JSX.Element {
     return (
       <NodeEditor
         actionHandler={actionHandler}
-        defaultOpen={child.defaultExpansionState === "collapsed" ? false : true}
+        expanded={child.expanded}
         disableIcon={true}
         key={key}
         settings={child}
@@ -113,7 +133,7 @@ function NodeEditorComponent(props: NodeEditorProps): JSX.Element {
     <>
       {indent > 0 && (
         <NodeHeader indent={indent}>
-          <NodeHeaderToggle indent={indent} onClick={() => setOpen(!open)}>
+          <NodeHeaderToggle indent={indent} onClick={toggleExpanded}>
             <div
               style={{
                 display: "inline-flex",
@@ -121,7 +141,7 @@ function NodeEditorComponent(props: NodeEditorProps): JSX.Element {
                 marginRight: "0.25rem",
               }}
             >
-              {hasProperties && <>{open ? <ArrowDownIcon /> : <ArrowRightIcon />}</>}
+              {hasProperties && <>{expanded ? <ArrowDownIcon /> : <ArrowRightIcon />}</>}
               {!disableIcon &&
                 (icon != undefined ? icon : indent > 0 ? <LayerIcon /> : <SettingsIcon />)}
             </div>
@@ -143,7 +163,7 @@ function NodeEditorComponent(props: NodeEditorProps): JSX.Element {
           />
         </NodeHeader>
       )}
-      <Collapse in={open}>
+      <Collapse in={expanded}>
         {fieldEditors.length > 0 && (
           <>
             <LayerOptions visible={visible}>{fieldEditors}</LayerOptions>

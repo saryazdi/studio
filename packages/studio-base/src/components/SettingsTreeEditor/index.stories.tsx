@@ -55,13 +55,14 @@ const BasicSettings: SettingsTreeNode = {
       },
     },
     defaultCollapsed: {
+      expanded: false,
       label: "Default Collapsed",
-      defaultExpansionState: "collapsed",
       fields: {
         field: { label: "Field", input: "string" },
       },
     },
     background: {
+      expanded: true,
       label: "Background",
       fields: {
         colorRGB: { label: "Color RGB", value: "#000000", input: "rgb" },
@@ -307,6 +308,8 @@ function updateSettingsTreeNode(
     const key = workingPath.shift()!;
     if (key === "visible") {
       node.visible = Boolean(value);
+    } else if (key === "expanded") {
+      node.expanded = Boolean(value);
     } else {
       const field = node.fields?.[key];
       if (field != undefined) {
