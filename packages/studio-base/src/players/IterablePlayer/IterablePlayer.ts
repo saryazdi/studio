@@ -92,6 +92,22 @@ type IterablePlayerState =
   | "play"
   | "close";
 
+function objectHasDataView(obj: unknown): obj is { _view: DataView } {
+  return obj != undefined && typeof obj === "object" && "_view" in obj;
+}
+
+function trimMessageEventDataView(message: unknown) {
+  if (objectHasDataView(message)) {
+    // eslint-disable-next-line no-underscore-dangle
+    const dataView = message._view;
+    const newArraySlice = new Uint8Array(dataView.buffer, dataView.byteOffset, dataView.byteLength);
+    const newArray = new Uint8Array(newArraySlice);
+    const newView = new DataView(newArray.buffer);
+    // eslint-disable-next-line no-underscore-dangle
+    message._view = newView;
+  }
+}
+
 /**
  * IterablePlayer implements the Player interface for IIterableSource instances.
  *
@@ -1024,6 +1040,7 @@ export class IterablePlayer implements Player {
         }
 
         totalBlockSizeBytes += messageSizeInBytes;
+        trimMessageEventDataView(iterResult.msgEvent.message);
         events.push(iterResult.msgEvent);
       }
 
