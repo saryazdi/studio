@@ -92,19 +92,22 @@ type IterablePlayerState =
   | "play"
   | "close";
 
-function objectHasDataView(obj: unknown): obj is { _view: DataView } {
-  return obj != undefined && typeof obj === "object" && "_view" in obj;
+function messageHasLazyDataView(message: unknown): message is { _view: DataView } {
+  return message != undefined && typeof message === "object" && "_view" in message;
 }
 
+/**
+ * Trims the underlying DataView in a lazy message to avoid retaining large
+ * array buffers referenced by the DataView.
+ */
 function trimMessageEventDataView(message: unknown) {
-  if (objectHasDataView(message)) {
+  if (messageHasLazyDataView(message)) {
     // eslint-disable-next-line no-underscore-dangle
     const dataView = message._view;
-    const newArraySlice = new Uint8Array(dataView.buffer, dataView.byteOffset, dataView.byteLength);
-    const newArray = new Uint8Array(newArraySlice);
-    const newView = new DataView(newArray.buffer);
     // eslint-disable-next-line no-underscore-dangle
-    message._view = newView;
+    message._view = new DataView(
+      dataView.buffer.slice(dataView.byteOffset, dataView.byteOffset + dataView.byteLength),
+    );
   }
 }
 
