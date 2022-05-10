@@ -125,6 +125,13 @@ function decodeMessageToBitmap(
   }
 
   switch (imageMessage.type) {
+    case "empty": {
+      return Promise.resolve({
+        width: imageMessage.width,
+        height: imageMessage.height,
+        close: () => {},
+      });
+    }
     case "compressed": {
       const image = new Blob([rawData], { type: `image/${imageMessage.format}` });
       return self.createImageBitmap(image);
@@ -240,7 +247,9 @@ function render({
   // also sets 0,0 as the upper left corner of the image since markers are drawn from 0,0 on the image
   ctx.translate(-bitmap.width / 2, -bitmap.height / 2);
 
-  ctx.drawImage(bitmap, 0, 0);
+  if (bitmap instanceof ImageBitmap) {
+    ctx.drawImage(bitmap, 0, 0);
+  }
 
   // The bitmap images from the image message may be resized to conserve space
   // while the markers are positioned relative to the original image size.

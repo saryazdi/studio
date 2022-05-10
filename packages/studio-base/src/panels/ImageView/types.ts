@@ -124,6 +124,14 @@ export type TextAnnotation = {
 
 export type Annotation = CircleAnnotation | PointsAnnotation | TextAnnotation;
 
+export type EmptyImageMessage = {
+  type: "empty";
+  stamp: { sec: number; nsec: number };
+  data: Uint8Array;
+  width: number;
+  height: number;
+};
+
 export type RawImageMessage = {
   type: "raw";
   stamp: { sec: number; nsec: number };
@@ -142,4 +150,4 @@ export type CompressedImageMessage = {
   data: Uint8Array;
 };
 
-export type NormalizedImageMessage = RawImageMessage | CompressedImageMessage;
+export type NormalizedImageMessage = RawImageMessage | CompressedImageMessage | EmptyImageMessage;

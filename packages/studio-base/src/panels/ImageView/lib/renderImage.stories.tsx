@@ -6,6 +6,7 @@ import { Story } from "@storybook/react";
 import { useEffect, useMemo, useRef } from "react";
 
 import { useCompressedImage, cameraInfo, annotations } from "../storySupport";
+import { NormalizedImageMessage } from "../types";
 import { renderImage } from "./renderImage";
 
 export default {
@@ -121,6 +122,59 @@ export const MarkersWithRotations: Story = (_args) => {
           style={{ width, height }}
         />
       ))}
+    </div>
+  );
+};
+
+export const EmptyImage: Story = (_args) => {
+  const canvasRef = useRef<HTMLCanvasElement>(ReactNull);
+  const hitmapRef = useRef<HTMLCanvasElement>(ReactNull);
+
+  const width = 400;
+  const height = 300;
+
+  useEffect(() => {
+    if (!canvasRef.current || !hitmapRef.current) {
+      return;
+    }
+
+    const imageMessage: NormalizedImageMessage = {
+      stamp: { sec: 0, nsec: 0 },
+      type: "empty",
+      data: new Uint8Array(0),
+      width,
+      height,
+    };
+
+    canvasRef.current.width = 2 * width;
+    canvasRef.current.height = 2 * height;
+    hitmapRef.current.width = 2 * width;
+    hitmapRef.current.height = 2 * height;
+
+    void renderImage({
+      canvas: canvasRef.current,
+      hitmapCanvas: hitmapRef.current,
+      geometry: {
+        flipHorizontal: false,
+        flipVertical: false,
+        panZoom: { x: 0, y: 0, scale: 1 },
+        rotation: 0,
+        viewport: { width, height },
+        zoomMode: "fill",
+      },
+      imageMessage,
+      rawMarkerData: {
+        markers: annotations,
+        cameraInfo,
+        transformMarkers: true,
+      },
+    });
+  }, []);
+
+  return (
+    <div style={{ backgroundColor: "white", padding: "1rem" }}>
+      <canvas ref={canvasRef} style={{ width, height }} />
+      <canvas ref={hitmapRef} style={{ width, height }} />
     </div>
   );
 };
