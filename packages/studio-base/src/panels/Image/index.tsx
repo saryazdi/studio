@@ -395,6 +395,13 @@ function ImageView(props: Props) {
 
   const showEmptyState = !image;
 
+  const setPanZoom = useCallback(
+    (panZoom: Pick<Config, "zoom" | "pan" | "mode">) => {
+      saveConfig(panZoom);
+    },
+    [saveConfig],
+  );
+
   return (
     <Stack flex="auto" overflow="hidden" position="relative">
       {/*
@@ -409,7 +416,10 @@ function ImageView(props: Props) {
       The annotation dropdown allows multiple selection and remains open.
       */}
       <div ref={rootRef}></div>
-      <PanelToolbar helpContent={helpContent} additionalIcons={<ZoomMenu />}>
+      <PanelToolbar
+        helpContent={helpContent}
+        additionalIcons={<ZoomMenu zoom={config.zoom ?? 1} setPanZoom={setPanZoom} />}
+      >
         <div className={classes.controls}>
           {imageTopicDropdown}
           {annotationDropdown}
