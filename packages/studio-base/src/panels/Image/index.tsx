@@ -37,7 +37,14 @@ import { mightActuallyBePartial } from "@foxglove/studio-base/util/mightActually
 import { getTopicsByTopicName } from "@foxglove/studio-base/util/selectors";
 import { formatTimeRaw } from "@foxglove/studio-base/util/time";
 
-import { ImageCanvas, ImageEmptyState, Toolbar, TopicDropdown, TopicTimestamp } from "./components";
+import {
+  ImageCanvas,
+  ImageEmptyState,
+  Toolbar,
+  TopicDropdown,
+  TopicTimestamp,
+  ZoomMenu,
+} from "./components";
 import { useCameraInfo, ANNOTATION_DATATYPES, useImagePanelMessages } from "./hooks";
 import helpContent from "./index.help.md";
 import { NORMALIZABLE_IMAGE_DATATYPES } from "./lib/normalizeMessage";
@@ -402,7 +409,7 @@ function ImageView(props: Props) {
       The annotation dropdown allows multiple selection and remains open.
       */}
       <div ref={rootRef}></div>
-      <PanelToolbar helpContent={helpContent}>
+      <PanelToolbar helpContent={helpContent} additionalIcons={<ZoomMenu />}>
         <div className={classes.controls}>
           {imageTopicDropdown}
           {annotationDropdown}
