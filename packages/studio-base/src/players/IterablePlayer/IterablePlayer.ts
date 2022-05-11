@@ -92,25 +92,6 @@ type IterablePlayerState =
   | "play"
   | "close";
 
-function messageHasLazyDataView(message: unknown): message is { _view: DataView } {
-  return message != undefined && typeof message === "object" && "_view" in message;
-}
-
-/**
- * Trims the underlying DataView in a lazy message to avoid retaining large
- * array buffers referenced by the DataView.
- */
-function trimMessageEventDataView(message: unknown) {
-  if (messageHasLazyDataView(message)) {
-    // eslint-disable-next-line no-underscore-dangle
-    const dataView = message._view;
-    // eslint-disable-next-line no-underscore-dangle
-    message._view = new DataView(
-      dataView.buffer.slice(dataView.byteOffset, dataView.byteOffset + dataView.byteLength),
-    );
-  }
-}
-
 /**
  * IterablePlayer implements the Player interface for IIterableSource instances.
  *
@@ -1043,7 +1024,6 @@ export class IterablePlayer implements Player {
         }
 
         totalBlockSizeBytes += messageSizeInBytes;
-        trimMessageEventDataView(iterResult.msgEvent.message);
         events.push(iterResult.msgEvent);
       }
 

@@ -31,6 +31,25 @@ import {
 
 type BagSource = { type: "file"; file: File } | { type: "remote"; url: string };
 
+function messageHasLazyDataView(message: unknown): message is { _view: DataView } {
+  return message != undefined && typeof message === "object" && "_view" in message;
+}
+
+/**
+ * Trims the underlying DataView in a lazy message to avoid retaining large
+ * array buffers referenced by the DataView.
+ */
+function trimMessageDataView(message: unknown) {
+  if (messageHasLazyDataView(message)) {
+    // eslint-disable-next-line no-underscore-dangle
+    const dataView = message._view;
+    // eslint-disable-next-line no-underscore-dangle
+    message._view = new DataView(
+      dataView.buffer.slice(dataView.byteOffset, dataView.byteOffset + dataView.byteLength),
+    );
+  }
+}
+
 export class BagIterableSource implements IIterableSource {
   private _source: BagSource;
   private _bag: Bag | undefined;
@@ -192,6 +211,7 @@ export class BagIterableSource implements IIterableSource {
 
       if (reader) {
         const parsedMessage = reader.readMessage(bagMsgEvent.data);
+        trimMessageDataView(parsedMessage);
 
         yield {
           connectionId,
