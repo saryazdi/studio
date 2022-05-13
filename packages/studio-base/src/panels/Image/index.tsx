@@ -13,7 +13,7 @@
 
 import { useTheme } from "@fluentui/react";
 import WavesIcon from "@mdi/svg/svg/waves.svg";
-import { Stack, Theme } from "@mui/material";
+import { Divider, Stack, Theme, styled as muiStyled } from "@mui/material";
 import { makeStyles } from "@mui/styles";
 import cx from "classnames";
 import produce from "immer";
@@ -176,6 +176,11 @@ const BottomBar = ({ children }: { children?: React.ReactNode }) => {
     </div>
   );
 };
+
+const VerticalDivider = muiStyled(Divider)(({ theme }) => ({
+  marginLeft: theme.spacing(0.75),
+  marginRight: theme.spacing(0.75),
+}));
 
 function ImageView(props: Props) {
   const classes = useStyles();
