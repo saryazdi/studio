@@ -2,9 +2,10 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
+import Logger from "@foxglove/log";
 import { Mcap0IndexedReader, Mcap0Types } from "@foxglove/mcap";
 import { ParsedChannel, parseChannel } from "@foxglove/mcap-support";
-import { Time, fromNanoSec, toNanoSec } from "@foxglove/rostime";
+import { Time, fromNanoSec, toNanoSec, compare } from "@foxglove/rostime";
 import { Topic, MessageEvent } from "@foxglove/studio";
 import {
   GetBackfillMessagesArgs,
@@ -15,6 +16,8 @@ import {
 } from "@foxglove/studio-base/players/IterablePlayer/IIterableSource";
 import { PlayerProblem, TopicStats } from "@foxglove/studio-base/players/types";
 import { RosDatatypes } from "@foxglove/studio-base/types/RosDatatypes";
+
+const log = Logger.getLogger(__filename);
 
 export class McapIndexedIterableSource implements IIterableSource {
   private reader: Mcap0IndexedReader;
@@ -147,7 +150,40 @@ export class McapIndexedIterableSource implements IIterableSource {
     }
   }
 
-  async getBackfillMessages(_args: GetBackfillMessagesArgs): Promise<MessageEvent<unknown>[]> {
-    return [];
+  async getBackfillMessages(args: GetBackfillMessagesArgs): Promise<MessageEvent<unknown>[]> {
+    const { topics, time } = args;
+
+    const messages: MessageEvent<unknown>[] = [];
+    for (const topic of topics) {
+      // NOTE: An iterator is made for each topic to get the latest message on that topic.
+      // An single iterator for all the topics could result in iterating through many
+      // irrelevant messages to get to an older message on a topic.
+      for await (const message of this.reader.readMessages({
+        endTime: toNanoSec(time),
+        topics: [topic],
+        reverse: true,
+      })) {
+        const channelInfo = this.channelInfoById.get(message.channelId);
+        if (!channelInfo) {
+          continue;
+        }
+
+        try {
+          messages.push({
+            topic: channelInfo.channel.topic,
+            receiveTime: fromNanoSec(message.logTime),
+            publishTime: fromNanoSec(message.publishTime),
+            message: channelInfo.parsedChannel.deserializer(message.data),
+            sizeInBytes: message.data.byteLength,
+          });
+        } catch (err) {
+          log.error(err);
+        }
+
+        break;
+      }
+    }
+    messages.sort((a, b) => compare(a.receiveTime, b.receiveTime));
+    return messages;
   }
 }
