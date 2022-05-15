@@ -23,6 +23,7 @@ import {
   PanelExtensionContext,
   ParameterValue,
   RenderState,
+  SubscribeOptions,
   Topic,
 } from "@foxglove/studio";
 import {
@@ -414,8 +415,13 @@ function PanelExtensionAdapter(props: PanelExtensionAdapterProps): JSX.Element {
         watchedFieldsRef.current.add(field);
       },
 
-      subscribe: (topics: string[]) => {
-        subscribedTopicsRef.current.clear();
+      subscribe: (topics: string | string[], options?: SubscribeOptions) => {
+        if (Array.isArray(topics)) {
+        }
+
+        if (topics instanceof Array) {
+          subscribedTopicsRef.current.clear();
+        }
 
         // If the player has loaded all the blocks, the blocks reference won't change so our message
         // pipeline handler for allFrames won't create a new set of all frames for the newly
@@ -432,6 +438,10 @@ function PanelExtensionAdapter(props: PanelExtensionAdapterProps): JSX.Element {
         if (topics.length > 0) {
           requestBackfill();
         }
+      },
+
+      unsubscribe: () => {
+        // fixme
       },
 
       advertise: capabilities.includes(PlayerCapabilities.advertise)
