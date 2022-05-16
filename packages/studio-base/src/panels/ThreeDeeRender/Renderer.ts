@@ -7,19 +7,40 @@ import * as THREE from "three";
 
 import Logger from "@foxglove/log";
 import { CameraState } from "@foxglove/regl-worldview";
-import { ScreenOverlay } from "@foxglove/studio-base/panels/ThreeDeeRender/ScreenOverlay";
 
 import { Input } from "./Input";
 import { LayerErrors } from "./LayerErrors";
 import { MaterialCache } from "./MaterialCache";
 import { ModelCache } from "./ModelCache";
 import { Picker } from "./Picker";
+import { ScreenOverlay } from "./ScreenOverlay";
+import { stringToRgb } from "./color";
 import { DetailLevel, msaaSamples } from "./lod";
+import { Cameras } from "./renderables/Cameras";
 import { FrameAxes } from "./renderables/FrameAxes";
 import { Markers } from "./renderables/Markers";
 import { OccupancyGrids } from "./renderables/OccupancyGrids";
 import { PointClouds } from "./renderables/PointClouds";
-import { Marker, OccupancyGrid, PointCloud2, TF } from "./ros";
+import { Poses } from "./renderables/Poses";
+import {
+  CameraInfo,
+  Marker,
+  OccupancyGrid,
+  PointCloud2,
+  PoseStamped,
+  PoseWithCovarianceStamped,
+  TF,
+} from "./ros";
+import {
+  FieldsProvider,
+  LayerSettingsCameraInfo,
+  LayerSettingsMarker,
+  LayerSettingsOccupancyGrid,
+  LayerSettingsPointCloud2,
+  LayerSettingsPose,
+  LayerType,
+  ThreeDeeRenderConfig,
+} from "./settings";
 import { TransformTree } from "./transforms/TransformTree";
 
 const log = Logger.getLogger(__filename);
@@ -52,6 +73,7 @@ const TRANSFORM_STORAGE_TIME_NS = 60n * BigInt(1e9);
 const UNIT_X = new THREE.Vector3(1, 0, 0);
 const PI_2 = Math.PI / 2;
 
+const tempColor = new THREE.Color();
 const tempVec = new THREE.Vector3();
 const tempVec2 = new THREE.Vector2();
 const tempSpherical = new THREE.Spherical();
@@ -66,6 +88,7 @@ export class Renderer extends EventEmitter<RendererEvents> {
   // target: THREE.WebGLRenderTarget;
   // composer: EffectComposer;
   // outlinePass: OutlinePass;
+  config: ThreeDeeRenderConfig | undefined;
   scene: THREE.Scene;
   dirLight: THREE.DirectionalLight;
   hemiLight: THREE.HemisphereLight;
@@ -83,20 +106,20 @@ export class Renderer extends EventEmitter<RendererEvents> {
   currentTime: bigint | undefined;
   fixedFrameId: string | undefined;
   renderFrameId: string | undefined;
+  settingsFieldsProviders = new Map<LayerType, FieldsProvider>();
 
   frameAxes = new FrameAxes(this);
   occupancyGrids = new OccupancyGrids(this);
   pointClouds = new PointClouds(this);
   markers = new Markers(this);
+  poses = new Poses(this);
+  cameras = new Cameras(this);
 
   constructor(canvas: HTMLCanvasElement) {
     super();
 
     // NOTE: Global side effect
     THREE.Object3D.DefaultUp = new THREE.Vector3(0, 0, 1);
-
-    // TODO: Remove this hack when the user can set the renderFrameId themselves
-    this.renderFrameId = "base_link";
 
     this.canvas = canvas;
     this.gl = new THREE.WebGLRenderer({
@@ -130,6 +153,8 @@ export class Renderer extends EventEmitter<RendererEvents> {
     this.scene.add(this.occupancyGrids);
     this.scene.add(this.pointClouds);
     this.scene.add(this.markers);
+    this.scene.add(this.poses);
+    this.scene.add(this.cameras);
 
     this.dirLight = new THREE.DirectionalLight();
     this.dirLight.position.set(1, 1, 1);
@@ -168,7 +193,6 @@ export class Renderer extends EventEmitter<RendererEvents> {
 
     const samples = msaaSamples(this.maxLod, this.gl.capabilities);
     const renderSize = this.gl.getDrawingBufferSize(tempVec2);
-
     log.debug(`Initialized ${renderSize.width}x${renderSize.height} renderer (${samples}x MSAA)`);
 
     this.animationFrame();
@@ -185,15 +209,22 @@ export class Renderer extends EventEmitter<RendererEvents> {
     this.gl.dispose();
   }
 
-  setColorScheme(colorScheme: "dark" | "light"): void {
-    log.debug(`Setting color scheme to "${colorScheme}"`);
+  setSettingsFieldsProvider(layerType: LayerType, provider: FieldsProvider): void {
+    this.settingsFieldsProviders.set(layerType, provider);
+    this.settingsFieldsProviders = new Map(this.settingsFieldsProviders);
+  }
+
+  setColorScheme(colorScheme: "dark" | "light", backgroundColor: string | undefined): void {
     this.colorScheme = colorScheme;
+
+    const bgColor = backgroundColor ? stringToRgb(tempColor, backgroundColor) : undefined;
+
     if (colorScheme === "dark") {
-      this.gl.setClearColor(DARK_BACKDROP);
+      this.gl.setClearColor(bgColor ?? DARK_BACKDROP);
       this.materialCache.outlineMaterial.color.set(DARK_OUTLINE);
       this.materialCache.outlineMaterial.needsUpdate = true;
     } else {
-      this.gl.setClearColor(LIGHT_BACKDROP);
+      this.gl.setClearColor(bgColor ?? LIGHT_BACKDROP);
       this.materialCache.outlineMaterial.color.set(LIGHT_OUTLINE);
       this.materialCache.outlineMaterial.needsUpdate = true;
     }
@@ -203,16 +234,48 @@ export class Renderer extends EventEmitter<RendererEvents> {
     this.frameAxes.addTransformMessage(tf);
   }
 
+  setTransformSettings(_name: string, _settings: { visible?: boolean }): void {
+    //
+  }
+
   addOccupancyGridMessage(topic: string, occupancyGrid: OccupancyGrid): void {
     this.occupancyGrids.addOccupancyGridMessage(topic, occupancyGrid);
+  }
+
+  setOccupancyGridSettings(topic: string, settings: Partial<LayerSettingsOccupancyGrid>): void {
+    this.occupancyGrids.setTopicSettings(topic, settings);
   }
 
   addPointCloud2Message(topic: string, pointCloud: PointCloud2): void {
     this.pointClouds.addPointCloud2Message(topic, pointCloud);
   }
 
+  setPointCloud2Settings(topic: string, settings: Partial<LayerSettingsPointCloud2>): void {
+    this.pointClouds.setTopicSettings(topic, settings);
+  }
+
   addMarkerMessage(topic: string, marker: Marker): void {
     this.markers.addMarkerMessage(topic, marker);
+  }
+
+  setMarkerSettings(topic: string, settings: Partial<LayerSettingsMarker>): void {
+    this.markers.setTopicSettings(topic, settings);
+  }
+
+  addPoseMessage(topic: string, pose: PoseStamped | PoseWithCovarianceStamped): void {
+    this.poses.addPoseMessage(topic, pose);
+  }
+
+  setPoseSettings(topic: string, settings: Partial<LayerSettingsPose>): void {
+    this.poses.setTopicSettings(topic, settings);
+  }
+
+  addCameraInfoMessage(topic: string, cameraInfo: CameraInfo): void {
+    this.cameras.addCameraInfoMessage(topic, cameraInfo);
+  }
+
+  setCameraInfoSettings(topic: string, settings: Partial<LayerSettingsCameraInfo>): void {
+    this.cameras.setTopicSettings(topic, settings);
   }
 
   markerWorldPosition(markerId: string): Readonly<THREE.Vector3> | undefined {
@@ -244,6 +307,8 @@ export class Renderer extends EventEmitter<RendererEvents> {
     this.occupancyGrids.startFrame(currentTime);
     this.pointClouds.startFrame(currentTime);
     this.markers.startFrame(currentTime);
+    this.poses.startFrame(currentTime);
+    this.cameras.startFrame(currentTime);
 
     this.gl.clear();
     this.camera.layers.set(LAYER_DEFAULT);

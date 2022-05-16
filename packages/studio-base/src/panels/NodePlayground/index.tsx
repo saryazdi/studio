@@ -11,11 +11,11 @@
 //   found at http://www.apache.org/licenses/LICENSE-2.0
 //   You may not use this file except in compliance with the License.
 
-import { useTheme, Link, Spinner, SpinnerSize } from "@fluentui/react";
+import { useTheme, Spinner, SpinnerSize } from "@fluentui/react";
 import ArrowLeftIcon from "@mdi/svg/svg/arrow-left.svg";
 import PlusIcon from "@mdi/svg/svg/plus.svg";
-import { Box, Input, Stack } from "@mui/material";
-import { Suspense, useCallback, useContext, useEffect, useState } from "react";
+import { Input, Link, Stack } from "@mui/material";
+import { Suspense, useCallback, useEffect, useState } from "react";
 import styled from "styled-components";
 import { v4 as uuidv4 } from "uuid";
 
@@ -34,13 +34,13 @@ import {
   useCurrentLayoutActions,
   useCurrentLayoutSelector,
 } from "@foxglove/studio-base/context/CurrentLayoutContext";
-import { useHelpInfo } from "@foxglove/studio-base/context/HelpInfoContext";
-import { PanelSettingsEditorContext } from "@foxglove/studio-base/context/PanelSettingsEditorContext";
 import { useUserNodeState } from "@foxglove/studio-base/context/UserNodeStateContext";
 import { useWorkspace } from "@foxglove/studio-base/context/WorkspaceContext";
 import BottomBar from "@foxglove/studio-base/panels/NodePlayground/BottomBar";
 import Sidebar from "@foxglove/studio-base/panels/NodePlayground/Sidebar";
 import Playground from "@foxglove/studio-base/panels/NodePlayground/playground-icon.svg";
+import { HelpInfoStore, useHelpInfo } from "@foxglove/studio-base/providers/HelpInfoProvider";
+import { usePanelSettingsTreeUpdate } from "@foxglove/studio-base/providers/PanelSettingsEditorContextProvider";
 import { UserNodes } from "@foxglove/studio-base/types/panels";
 import { colors } from "@foxglove/studio-base/util/sharedStyleConstants";
 
@@ -129,8 +129,10 @@ function buildSettingsStree(config: Config): SettingsTreeNode {
   };
 }
 
+const selectSetHelpInfo = (store: HelpInfoStore) => store.setHelpInfo;
+
 const WelcomeScreen = ({ addNewNode }: { addNewNode: (code?: string) => void }) => {
-  const { setHelpInfo } = useHelpInfo();
+  const setHelpInfo = useHelpInfo(selectSetHelpInfo);
   const { openHelp } = useWorkspace();
   return (
     <SWelcomeScreen>
@@ -138,7 +140,8 @@ const WelcomeScreen = ({ addNewNode }: { addNewNode: (code?: string) => void }) 
       <TextContent>
         Welcome to Node Playground! Get started by reading the{" "}
         <Link
-          href=""
+          color="primary"
+          underline="hover"
           onClick={(e) => {
             e.preventDefault();
             setHelpInfo({ title: "NodePlayground", content: helpContent });
@@ -168,7 +171,7 @@ function NodePlayground(props: Props) {
   const { config, saveConfig } = props;
   const { autoFormatOnSave = false, selectedNodeId, editorForStorybook } = config;
   const { id: panelId } = usePanelContext();
-  const { updatePanelSettingsTree } = useContext(PanelSettingsEditorContext);
+  const updatePanelSettingsTree = usePanelSettingsTreeUpdate();
 
   const theme = useTheme();
   const [explorer, updateExplorer] = React.useState<Explorer>(undefined);
@@ -224,7 +227,6 @@ function NodePlayground(props: Props) {
   useEffect(() => {
     updatePanelSettingsTree(panelId, {
       actionHandler,
-      disableFilter: true,
       settings: buildSettingsStree(config),
     });
   }, [actionHandler, config, panelId, updatePanelSettingsTree]);
@@ -379,7 +381,7 @@ function NodePlayground(props: Props) {
 
           <Stack flexGrow={1} overflow="hidden ">
             {selectedNodeId == undefined && <WelcomeScreen addNewNode={addNewNode} />}
-            <Box
+            <div
               style={{
                 flexGrow: 1,
                 width: "100%",
@@ -414,7 +416,7 @@ function NodePlayground(props: Props) {
                   />
                 )}
               </Suspense>
-            </Box>
+            </div>
             <Stack>
               <BottomBar
                 nodeId={selectedNodeId}

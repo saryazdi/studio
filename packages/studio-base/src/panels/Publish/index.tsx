@@ -14,7 +14,7 @@
 import { Box, Stack, Typography } from "@mui/material";
 import produce from "immer";
 import { set } from "lodash";
-import { useCallback, useContext, useEffect, useMemo, useRef } from "react";
+import { useCallback, useEffect, useMemo, useRef } from "react";
 import styled from "styled-components";
 
 import { useRethrow } from "@foxglove/hooks";
@@ -29,10 +29,9 @@ import {
   SettingsTreeAction,
   SettingsTreeNode,
 } from "@foxglove/studio-base/components/SettingsTreeEditor/types";
-import { PanelSettingsEditorContext } from "@foxglove/studio-base/context/PanelSettingsEditorContext";
 import usePublisher from "@foxglove/studio-base/hooks/usePublisher";
 import { PlayerCapabilities, Topic } from "@foxglove/studio-base/players/types";
-import { PanelConfigSchema } from "@foxglove/studio-base/types/panels";
+import { usePanelSettingsTreeUpdate } from "@foxglove/studio-base/providers/PanelSettingsEditorContextProvider";
 
 import buildSampleMessage from "./buildSampleMessage";
 import helpContent from "./index.help.md";
@@ -58,7 +57,7 @@ function buildSettingsTree(config: Config): SettingsTreeNode {
       advancedView: { label: "Editing Mode", input: "boolean", value: config.advancedView },
       buttonText: { label: "Button Title", input: "string", value: config.buttonText },
       buttonTooltip: { label: "Button Tooltip", input: "string", value: config.buttonTooltip },
-      buttonColor: { label: "Button Color", input: "color", value: config.buttonColor },
+      buttonColor: { label: "Button Color", input: "rgb", value: config.buttonColor },
     },
   };
 }
@@ -121,7 +120,7 @@ function Publish(props: Props) {
   const datatypeNames = useMemo(() => Array.from(datatypes.keys()).sort(), [datatypes]);
   const { error, parsedObject } = useMemo(() => parseInput(value), [value]);
   const { id: panelId } = usePanelContext();
-  const { updatePanelSettingsTree } = useContext(PanelSettingsEditorContext);
+  const updatePanelSettingsTree = usePanelSettingsTreeUpdate();
 
   // when the selected datatype changes, replace the textarea contents with a sample message of the correct shape
   // Make sure not to build a sample message on first load, though -- we don't want to overwrite
@@ -157,7 +156,6 @@ function Publish(props: Props) {
   useEffect(() => {
     updatePanelSettingsTree(panelId, {
       actionHandler,
-      disableFilter: true,
       settings: buildSettingsTree(props.config),
     });
   }, [actionHandler, panelId, props.config, updatePanelSettingsTree]);
@@ -267,13 +265,6 @@ function Publish(props: Props) {
   );
 }
 
-const configSchema: PanelConfigSchema<Config> = [
-  { key: "advancedView", type: "toggle", title: "Editing mode" },
-  { key: "buttonText", type: "text", title: "Button title" },
-  { key: "buttonTooltip", type: "text", title: "Button tooltip" },
-  { key: "buttonColor", type: "color", title: "Button color" },
-];
-
 export default Panel(
   Object.assign(React.memo(Publish), {
     panelType: "Publish",
@@ -286,6 +277,5 @@ export default Panel(
       advancedView: true,
       value: "",
     },
-    configSchema,
   }),
 );

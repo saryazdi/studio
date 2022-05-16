@@ -3,8 +3,6 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
 import ClearIcon from "@mui/icons-material/Clear";
-import HelpOutlineIcon from "@mui/icons-material/HelpOutline";
-import InfoOutlinedIcon from "@mui/icons-material/InfoOutlined";
 import {
   Autocomplete,
   ToggleButton,
@@ -15,19 +13,15 @@ import {
   MenuItem,
   Select,
   TextField,
-  IconButton,
   ListProps,
   useTheme,
 } from "@mui/material";
 import { DeepReadonly } from "ts-essentials";
 
 import MessagePathInput from "@foxglove/studio-base/components/MessagePathSyntax/MessagePathInput";
-import messagePathHelp from "@foxglove/studio-base/components/MessagePathSyntax/index.help.md";
 import Stack from "@foxglove/studio-base/components/Stack";
-import { useHelpInfo } from "@foxglove/studio-base/context/HelpInfoContext";
-import { useWorkspace } from "@foxglove/studio-base/context/WorkspaceContext";
 
-import { ColorPickerInput, ColorScalePicker, NumberInput, Vec3Input } from "./inputs";
+import { ColorPickerInput, ColorGradientInput, NumberInput, Vec3Input } from "./inputs";
 import { SettingsTreeAction, SettingsTreeField } from "./types";
 
 const StyledToggleButtonGroup = muiStyled(ToggleButtonGroup)(({ theme }) => ({
@@ -85,15 +79,6 @@ const PsuedoInputWrapper = muiStyled(Stack)(({ theme }) => {
   };
 });
 
-const StyledIconButton = muiStyled(IconButton)(({ theme, edge }) => ({
-  marginTop: theme.spacing(-0.5),
-  marginBottom: theme.spacing(-0.5),
-
-  ...(edge === "end" && {
-    marginRight: theme.spacing(-0.75),
-  }),
-}));
-
 function FieldInput({
   actionHandler,
   field,
@@ -103,9 +88,6 @@ function FieldInput({
   field: DeepReadonly<SettingsTreeField>;
   path: readonly string[];
 }): JSX.Element {
-  const { openHelp } = useWorkspace();
-  const { setHelpInfo } = useHelpInfo();
-
   switch (field.input) {
     case "autocomplete":
       return (
@@ -143,6 +125,8 @@ function FieldInput({
           value={field.value}
           placeholder={field.placeholder}
           fullWidth
+          max={field.max}
+          min={field.min}
           step={field.step}
           onChange={(value) =>
             actionHandler({ action: "update", payload: { path, input: "number", value } })
@@ -167,7 +151,7 @@ function FieldInput({
           ))}
         </StyledToggleButtonGroup>
       );
-    case "string": {
+    case "string":
       return (
         <TextField
           variant="filled"
@@ -183,43 +167,55 @@ function FieldInput({
           }
         />
       );
-    }
-    case "boolean": {
+    case "boolean":
       return (
         <StyledToggleButtonGroup
           fullWidth
           value={field.value}
           exclusive
           size="small"
-          onChange={(_event, value) =>
-            actionHandler({
-              action: "update",
-              payload: { path, input: "boolean", value },
-            })
-          }
+          onChange={(_event, value) => {
+            if (value != undefined) {
+              actionHandler({
+                action: "update",
+                payload: { path, input: "boolean", value },
+              });
+            }
+          }}
         >
           <ToggleButton value={true}>On</ToggleButton>
           <ToggleButton value={false}>Off</ToggleButton>
         </StyledToggleButtonGroup>
       );
-    }
-    case "color": {
+    case "rgb":
       return (
         <ColorPickerInput
+          alphaType="none"
+          placeholder={field.placeholder}
           value={field.value?.toString()}
-          size="small"
-          variant="filled"
-          fullWidth
           onChange={(value) =>
             actionHandler({
               action: "update",
-              payload: { path, input: "color", value },
+              payload: { path, input: "rgb", value },
             })
           }
         />
       );
-    }
-    case "messagepath": {
+    case "rgba":
+      return (
+        <ColorPickerInput
+          alphaType="alpha"
+          placeholder={field.placeholder}
+          value={field.value?.toString()}
+          onChange={(value) =>
+            actionHandler({
+              action: "update",
+              payload: { path, input: "rgba", value },
+            })
+          }
+        />
+      );
+    case "messagepath":
       return (
         <PsuedoInputWrapper direction="row">
           <MessagePathInput
@@ -232,25 +228,13 @@ function FieldInput({
             }
             validTypes={field.validTypes}
           />
-          <StyledIconButton
-            size="small"
-            color="secondary"
-            title="Message path syntax documentation"
-            onClick={() => {
-              setHelpInfo({ title: "MessagePathSyntax", content: messagePathHelp });
-              openHelp();
-            }}
-            edge="end"
-          >
-            <InfoOutlinedIcon fontSize="inherit" />
-          </StyledIconButton>
         </PsuedoInputWrapper>
       );
-    }
-    case "select": {
+    case "select":
       return (
         <Select
           size="small"
+          displayEmpty
           fullWidth
           variant="filled"
           value={field.value}
@@ -269,20 +253,25 @@ function FieldInput({
           ))}
         </Select>
       );
-    }
-    case "gradient": {
-      return <ColorScalePicker color="inherit" size="small" />;
-    }
-    case "vec3": {
+    case "gradient":
+      return (
+        <ColorGradientInput
+          colors={field.value}
+          onChange={(value) =>
+            actionHandler({ action: "update", payload: { path, input: "gradient", value } })
+          }
+        />
+      );
+    case "vec3":
       return (
         <Vec3Input
+          step={field.step}
           value={field.value}
           onChange={(value) =>
             actionHandler({ action: "update", payload: { path, input: "vec3", value } })
           }
         />
       );
-    }
   }
 }
 
@@ -332,7 +321,7 @@ function FieldLabel({ field }: { field: DeepReadonly<SettingsTreeField> }): JSX.
     return (
       <>
         <Typography
-          title={field.label}
+          title={field.help ?? field.label}
           variant="subtitle2"
           color="text.secondary"
           noWrap
@@ -340,11 +329,6 @@ function FieldLabel({ field }: { field: DeepReadonly<SettingsTreeField> }): JSX.
         >
           {field.label}
         </Typography>
-        {field.help && (
-          <IconButton size="small" color="secondary" title={field.help}>
-            <HelpOutlineIcon fontSize="inherit" />
-          </IconButton>
-        )}
       </>
     );
   }

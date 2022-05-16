@@ -45,28 +45,34 @@ export default function Root({
   const enableExperimentalDataPlatformPlayer: boolean =
     (appConfiguration.get(AppSetting.EXPERIMENTAL_DATA_PLATFORM_PLAYER) as boolean | undefined) ??
     false;
+  const enableExperimentalMcapPlayer: boolean =
+    (appConfiguration.get(AppSetting.EXPERIMENTAL_MCAP_PLAYER) as boolean | undefined) ?? false;
 
   const dataSources: IDataSourceFactory[] = useMemo(() => {
     const sources = [
+      new RosbridgeDataSourceFactory(),
+      new FoxgloveWebSocketDataSourceFactory(),
       new Ros1SocketDataSourceFactory(),
       new Ros1LocalBagDataSourceFactory({ useIterablePlayer: enableExperimentalBagPlayer }),
       new Ros1RemoteBagDataSourceFactory({ useIterablePlayer: enableExperimentalBagPlayer }),
       new Ros2SocketDataSourceFactory(),
       new Ros2LocalBagDataSourceFactory(),
-      new RosbridgeDataSourceFactory(),
-      new FoxgloveWebSocketDataSourceFactory(),
       new UlogLocalDataSourceFactory(),
       new VelodyneDataSourceFactory(),
       new FoxgloveDataPlatformDataSourceFactory({
         useIterablePlayer: enableExperimentalDataPlatformPlayer,
       }),
       new SampleNuscenesDataSourceFactory({ useIterablePlayer: enableExperimentalBagPlayer }),
-      new McapLocalDataSourceFactory(),
+      new McapLocalDataSourceFactory({ useIterablePlayer: enableExperimentalMcapPlayer }),
       new McapRemoteDataSourceFactory(),
     ];
 
     return sources;
-  }, [enableExperimentalBagPlayer, enableExperimentalDataPlatformPlayer]);
+  }, [
+    enableExperimentalBagPlayer,
+    enableExperimentalDataPlatformPlayer,
+    enableExperimentalMcapPlayer,
+  ]);
 
   if (!storageBridge) {
     throw new Error("storageBridge is missing");

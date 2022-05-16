@@ -3,33 +3,47 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
 export type SettingsTreeFieldValue =
-  | { input: "autocomplete"; value?: string; items: string[] }
+  | { input: "autocomplete"; value?: string; items: ReadonlyArray<string> }
   | { input: "boolean"; value?: boolean }
-  | { input: "color"; value?: string }
-  | { input: "gradient"; value?: string }
+  | { input: "rgb"; value?: string }
+  | { input: "rgba"; value?: string }
+  | { input: "gradient"; value?: [string, string] }
   | { input: "messagepath"; value?: string; validTypes?: string[] }
-  | { input: "number"; value?: number; step?: number }
+  | { input: "number"; value?: number; step?: number; max?: number; min?: number }
   | {
       input: "select";
-      value?: number | readonly number[];
-      options: Array<{ label: string; value: undefined | number }>;
+      value?: number | ReadonlyArray<number>;
+      options: ReadonlyArray<{ label: string; value: undefined | number }>;
     }
   | {
       input: "select";
-      value?: string | readonly string[];
-      options: Array<{ label: string; value: undefined | string }>;
+      value?: string | ReadonlyArray<string>;
+      options: ReadonlyArray<{ label: string; value: undefined | string }>;
     }
   | { input: "string"; value?: string }
-  | { input: "toggle"; value?: string; options: string[] }
+  | { input: "toggle"; value?: string; options: ReadonlyArray<string> }
   | {
       input: "vec3";
       value?: readonly [undefined | number, undefined | number, undefined | number];
+      step?: number;
       labels?: [string, string, string];
     };
 
 export type SettingsTreeField = SettingsTreeFieldValue & {
+  /**
+   * Optional help text to explain the purpose of the field.
+   */
   help?: string;
+
+  /**
+   * The label displayed alongside the field.
+   */
   label: string;
+
+  /**
+   * Optional placeholder text displayed in the field input in the
+   * absence of a value.
+   */
   placeholder?: string;
 };
 
@@ -38,9 +52,32 @@ export type SettingsTreeFields = Record<string, SettingsTreeField>;
 export type SettingsTreeChildren = Record<string, SettingsTreeNode>;
 
 export type SettingsTreeNode = {
+  /**
+   * Other settings tree nodes nested under this node.
+   */
   children?: SettingsTreeChildren;
+
+  /**
+   * Set to collapsed if the node should be initially collapsed.
+   */
+  defaultExpansionState?: "collapsed" | "expanded";
+
+  /**
+   * Field inputs attached directly to this node.
+   */
   fields?: SettingsTreeFields;
+
+  /**
+   * An optional label shown at the top of this node.
+   */
   label?: string;
+
+  /**
+   * An optional visibility status. If this is not undefined, the node
+   * editor will display a visiblity toggle button and send update actions
+   * to the action handler.
+   **/
+  visible?: boolean;
 };
 
 /**
@@ -55,7 +92,7 @@ type DistributivePick<T, K extends keyof T> = T extends unknown ? Pick<T, K> : n
  */
 export type SettingsTreeAction = {
   action: "update";
-  payload: { path: readonly string[] } & DistributivePick<
+  payload: { path: ReadonlyArray<string> } & DistributivePick<
     SettingsTreeFieldValue,
     "input" | "value"
   >;
@@ -72,9 +109,9 @@ export type SettingsTree = {
   actionHandler: (action: SettingsTreeAction) => void;
 
   /**
-   * True if the editor should not show the filter control.
+   * True if the editor should show the filter control.
    */
-  disableFilter?: boolean;
+  enableFilter?: boolean;
 
   /**
    * The actual settings tree. Updates to this will automatically be reflected in the

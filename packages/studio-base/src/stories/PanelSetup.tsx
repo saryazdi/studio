@@ -11,6 +11,7 @@
 //   found at http://www.apache.org/licenses/LICENSE-2.0
 //   You may not use this file except in compliance with the License.
 
+import { setWarningCallback } from "@fluentui/react";
 import { flatten } from "lodash";
 import { ComponentProps, useLayoutEffect, useRef, useState } from "react";
 import { DndProvider } from "react-dnd";
@@ -18,6 +19,7 @@ import { HTML5Backend } from "react-dnd-html5-backend";
 import { Mosaic, MosaicNode, MosaicWindow } from "react-mosaic-component";
 
 import { useShallowMemo } from "@foxglove/hooks";
+import Logger from "@foxglove/log";
 import { MessageEvent } from "@foxglove/studio";
 import MockMessagePipelineProvider from "@foxglove/studio-base/components/MessagePipeline/MockMessagePipelineProvider";
 import AppConfigurationContext from "@foxglove/studio-base/context/AppConfigurationContext";
@@ -49,12 +51,22 @@ import {
 } from "@foxglove/studio-base/players/types";
 import MockCurrentLayoutProvider from "@foxglove/studio-base/providers/CurrentLayoutProvider/MockCurrentLayoutProvider";
 import HelpInfoProvider from "@foxglove/studio-base/providers/HelpInfoProvider";
+import { PanelSettingsEditorContextProvider } from "@foxglove/studio-base/providers/PanelSettingsEditorContextProvider";
 import { RosDatatypes } from "@foxglove/studio-base/types/RosDatatypes";
-import { PanelConfigSchemaEntry, SavedProps, UserNodes } from "@foxglove/studio-base/types/panels";
+import { SavedProps, UserNodes } from "@foxglove/studio-base/types/panels";
+
+const log = Logger.getLogger(__filename);
 
 type Frame = {
   [topic: string]: MessageEvent<unknown>[];
 };
+
+setWarningCallback((msg) => {
+  if (msg.endsWith("was not registered.")) {
+    return;
+  }
+  log.warn(`[FluentUI] ${msg}`);
+});
 
 export type Fixture = {
   frame?: Frame;
@@ -146,9 +158,6 @@ export const MosaicWrapper = ({ children }: { children: React.ReactNode }): JSX.
 
 // empty catalog if one is not provided via props
 class MockPanelCatalog implements PanelCatalog {
-  async getConfigSchema(_type: string): Promise<PanelConfigSchemaEntry<string>[] | undefined> {
-    return undefined;
-  }
   getPanels(): readonly PanelInfo[] {
     return [];
   }
@@ -299,9 +308,11 @@ export default function PanelSetup(props: Props): JSX.Element {
     <UserNodeStateProvider>
       <HoverValueProvider>
         <MockCurrentLayoutProvider onAction={props.onLayoutAction}>
-          <HelpInfoProvider>
-            <UnconnectedPanelSetup {...props} />
-          </HelpInfoProvider>
+          <PanelSettingsEditorContextProvider>
+            <HelpInfoProvider>
+              <UnconnectedPanelSetup {...props} />
+            </HelpInfoProvider>
+          </PanelSettingsEditorContextProvider>
         </MockCurrentLayoutProvider>
       </HoverValueProvider>
     </UserNodeStateProvider>

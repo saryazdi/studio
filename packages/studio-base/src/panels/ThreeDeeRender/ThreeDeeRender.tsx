@@ -21,13 +21,18 @@ import { toNanoSec } from "@foxglove/rostime";
 import { PanelExtensionContext, RenderState, Topic, MessageEvent } from "@foxglove/studio";
 import { SettingsTreeAction } from "@foxglove/studio-base/components/SettingsTreeEditor/types";
 import useCleanup from "@foxglove/studio-base/hooks/useCleanup";
-import { normalizeMarker } from "@foxglove/studio-base/panels/ThreeDeeRender/normalizeMessages";
 
 import { DebugGui } from "./DebugGui";
 import { setOverlayPosition } from "./LabelOverlay";
 import { Renderer } from "./Renderer";
 import { RendererContext, useRenderer, useRendererEvent } from "./RendererContext";
 import { Stats } from "./Stats";
+import {
+  normalizeCameraInfo,
+  normalizeMarker,
+  normalizePoseStamped,
+  normalizePoseWithCovarianceStamped,
+} from "./normalizeMessages";
 import {
   TRANSFORM_STAMPED_DATATYPES,
   TF_DATATYPES,
@@ -39,18 +44,23 @@ import {
   POINTCLOUD_DATATYPES,
   OccupancyGrid,
   OCCUPANCY_GRID_DATATYPES,
+  POSE_STAMPED_DATATYPES,
+  POSE_WITH_COVARIANCE_STAMPED_DATATYPES,
+  PoseStamped,
+  PoseWithCovarianceStamped,
+  CameraInfo,
+  CAMERA_INFO_DATATYPES,
 } from "./ros";
-import { buildSettingsTree, ThreeDeeRenderConfig } from "./settings";
+import {
+  buildSettingsTree,
+  LayerType,
+  SelectEntry,
+  SUPPORTED_DATATYPES,
+  ThreeDeeRenderConfig,
+} from "./settings";
 
 const SHOW_DEBUG: true | false = false;
-
-const SUPPORTED_DATATYPES = new Set<string>();
-mergeSetInto(SUPPORTED_DATATYPES, TRANSFORM_STAMPED_DATATYPES);
-mergeSetInto(SUPPORTED_DATATYPES, TF_DATATYPES);
-mergeSetInto(SUPPORTED_DATATYPES, MARKER_DATATYPES);
-mergeSetInto(SUPPORTED_DATATYPES, MARKER_ARRAY_DATATYPES);
-mergeSetInto(SUPPORTED_DATATYPES, OCCUPANCY_GRID_DATATYPES);
-mergeSetInto(SUPPORTED_DATATYPES, POINTCLOUD_DATATYPES);
+const DEFAULT_FRAME_IDS = ["base_link", "odom", "map", "earth"];
 
 const log = Logger.getLogger(__filename);
 
@@ -177,11 +187,13 @@ export function ThreeDeeRender({ context }: { context: PanelExtensionContext }):
 
     return {
       cameraState,
-      enableStats: partialConfig?.enableStats ?? true,
       followTf: partialConfig?.followTf,
+      scene: partialConfig?.scene ?? {},
+      topics: partialConfig?.topics ?? {},
     };
   });
-  const { cameraState, followTf } = config;
+  const { cameraState, followTf: configFollowTf } = config;
+  const backgroundColor = config.scene.backgroundColor;
 
   const [canvas, setCanvas] = useState<HTMLCanvasElement | ReactNull>(ReactNull);
   const [renderer, setRenderer] = useState<Renderer | ReactNull>(ReactNull);
@@ -200,27 +212,129 @@ export function ThreeDeeRender({ context }: { context: PanelExtensionContext }):
   }, []);
   const [cameraStore] = useState(() => new CameraStore(setCameraState, cameraState));
 
-  const actionHandler = useCallback((action: SettingsTreeAction) => {
-    setConfig((oldConfig) =>
-      produce(oldConfig, (draft) => {
-        set(draft, action.payload.path, action.payload.value);
-      }),
-    );
-  }, []);
+  // Build a map from topic name to datatype
+  const topicsToDatatypes = useMemo(() => {
+    const map = new Map<string, string>();
+    if (!topics) {
+      return map;
+    }
+    for (const topic of topics) {
+      map.set(topic.name, topic.datatype);
+    }
+    return map;
+  }, [topics]);
+
+  // Build a map from (renderable) topic name to LayerType enum
+  const topicsToLayerTypes = useMemo(() => buildTopicsToLayerTypes(topics), [topics]);
+
+  // Handle user changes in the settings sidebar
+  const actionHandler = useCallback(
+    (action: SettingsTreeAction) => {
+      setConfig((oldConfig) => {
+        const newConfig = produce(oldConfig, (draft) => {
+          set(draft, action.payload.path, action.payload.value);
+        });
+
+        // If a topic setting was changed, inform the renderer about it and
+        // draw a new frame
+        if (renderer && action.payload.path[0] === "topics") {
+          const topic = action.payload.path[1]!;
+          const layerType = topicsToLayerTypes.get(topic);
+          if (layerType != undefined) {
+            updateTopicSettings(renderer, topic, layerType, newConfig);
+          }
+        }
+
+        return newConfig;
+      });
+    },
+    [renderer, topicsToLayerTypes],
+  );
+
+  // Maintain a list of coordinate frames for the settings sidebar
+  const [coordinateFrames, setCoordinateFrames] = useState<SelectEntry[]>(
+    coordinateFrameList(renderer),
+  );
+  const [defaultFrame, setDefaultFrame] = useState<string | undefined>(undefined);
+  const updateCoordinateFrames = useCallback(
+    (curRenderer: Renderer) => {
+      setCoordinateFrames(coordinateFrameList(curRenderer));
+
+      // Prefer frames from [REP-105](https://www.ros.org/reps/rep-0105.html)
+      for (const frameId of DEFAULT_FRAME_IDS) {
+        if (curRenderer.transformTree.hasFrame(frameId)) {
+          setDefaultFrame(frameId);
+          return;
+        }
+      }
+
+      // Choose the root frame with the most children
+      const rootsToCounts = new Map<string, number>();
+      for (const frame of curRenderer.transformTree.frames().values()) {
+        const rootId = frame.root().id;
+        rootsToCounts.set(rootId, (rootsToCounts.get(rootId) ?? 0) + 1);
+      }
+      const rootsArray = Array.from(rootsToCounts.entries());
+      const rootId = rootsArray.sort((a, b) => b[1] - a[1])[0]?.[0];
+      if (rootId != undefined) {
+        setDefaultFrame(rootId);
+      }
+    },
+    [setDefaultFrame],
+  );
+  useEffect(() => {
+    renderer?.addListener("transformTreeUpdated", updateCoordinateFrames);
+    return () => void renderer?.removeListener("transformTreeUpdated", updateCoordinateFrames);
+  }, [renderer, updateCoordinateFrames]);
+
+  // Set the rendering frame (aka followTf) based on the configured frame, falling back to a
+  // heuristically chosen best frame for the current scene (defaultFrame)
+  const followTf = useMemo(
+    () =>
+      configFollowTf != undefined && renderer && renderer.transformTree.hasFrame(configFollowTf)
+        ? configFollowTf
+        : defaultFrame,
+    [configFollowTf, defaultFrame, renderer],
+  );
+
+  const fieldsProviders = renderer?.settingsFieldsProviders;
 
   useEffect(() => {
     // eslint-disable-next-line no-underscore-dangle, @typescript-eslint/no-explicit-any
     (context as unknown as any).__updatePanelSettingsTree({
       actionHandler,
-      disableFilter: true,
-      settings: buildSettingsTree(config, topics ?? []),
+      settings: buildSettingsTree({
+        config,
+        coordinateFrames,
+        followTf,
+        topics: topics ?? [],
+        topicsToLayerTypes,
+        fieldsProviders: fieldsProviders ?? new Map(),
+      }),
     });
-  }, [actionHandler, config, context, topics]);
+  }, [
+    actionHandler,
+    config,
+    context,
+    coordinateFrames,
+    fieldsProviders,
+    followTf,
+    topics,
+    topicsToLayerTypes,
+  ]);
 
-  // Config followTf
+  // Update the renderer's reference to `config` when it changes
   useEffect(() => {
-    if (renderer && followTf != undefined) {
+    if (renderer) {
+      renderer.config = config;
+    }
+  }, [config, renderer]);
+
+  // Update renderer and draw a new frame when followTf changes
+  useEffect(() => {
+    if (renderer?.config && followTf != undefined) {
       renderer.renderFrameId = followTf;
+      renderer.animationFrame();
     }
   }, [followTf, renderer]);
 
@@ -281,18 +395,6 @@ export function ThreeDeeRender({ context }: { context: PanelExtensionContext }):
     context.watch("currentFrame");
   }, [context]);
 
-  // Build a map from topic name to datatype
-  const topicsToDatatypes = useMemo(() => {
-    const map = new Map<string, string>();
-    if (!topics) {
-      return map;
-    }
-    for (const topic of topics) {
-      map.set(topic.name, topic.datatype);
-    }
-    return map;
-  }, [topics]);
-
   // Build a list of topics to subscribe to
   const topicsToSubscribe = useMemo(() => {
     const subscriptionList: string[] = [];
@@ -304,10 +406,8 @@ export function ThreeDeeRender({ context }: { context: PanelExtensionContext }):
       // Subscribe to all transform topics
       if (TF_DATATYPES.has(topic.datatype) || TRANSFORM_STAMPED_DATATYPES.has(topic.datatype)) {
         subscriptionList.push(topic.name);
-      }
-
-      // TODO: Allow disabling of subscriptions to non-TF topics
-      if (SUPPORTED_DATATYPES.has(topic.datatype)) {
+      } else if (SUPPORTED_DATATYPES.has(topic.datatype)) {
+        // TODO: Allow disabling of subscriptions to non-TF topics
         subscriptionList.push(topic.name);
       }
     }
@@ -331,11 +431,13 @@ export function ThreeDeeRender({ context }: { context: PanelExtensionContext }):
     }
   }, [currentTime, renderer]);
 
+  // Keep the renderer colorScheme and backgroundColor up to date
   useEffect(() => {
     if (colorScheme && renderer) {
-      renderer.setColorScheme(colorScheme);
+      renderer.setColorScheme(colorScheme, backgroundColor);
+      renderer.animationFrame();
     }
-  }, [colorScheme, renderer]);
+  }, [backgroundColor, colorScheme, renderer]);
 
   // Handle messages and render a frame if the camera has moved or new messages
   // are available
@@ -384,6 +486,17 @@ export function ThreeDeeRender({ context }: { context: PanelExtensionContext }):
         // sensor_msgs/PointCloud2 - Ingest this point cloud
         const pointCloud = message.message as PointCloud2;
         renderer.addPointCloud2Message(message.topic, pointCloud);
+      } else if (POSE_STAMPED_DATATYPES.has(datatype)) {
+        const poseMesage = normalizePoseStamped(message.message as DeepPartial<PoseStamped>);
+        renderer.addPoseMessage(message.topic, poseMesage);
+      } else if (POSE_WITH_COVARIANCE_STAMPED_DATATYPES.has(datatype)) {
+        const poseMessage = normalizePoseWithCovarianceStamped(
+          message.message as DeepPartial<PoseWithCovarianceStamped>,
+        );
+        renderer.addPoseMessage(message.topic, poseMessage);
+      } else if (CAMERA_INFO_DATATYPES.has(datatype)) {
+        const cameraInfo = normalizeCameraInfo(message.message as DeepPartial<CameraInfo>);
+        renderer.addCameraInfoMessage(message.topic, cameraInfo);
       }
     }
 
@@ -417,14 +530,124 @@ export function ThreeDeeRender({ context }: { context: PanelExtensionContext }):
         <canvas ref={setCanvas} style={{ position: "absolute", top: 0, left: 0 }} />
       </CameraListener>
       <RendererContext.Provider value={renderer}>
-        <RendererOverlay colorScheme={colorScheme} enableStats={config.enableStats} />
+        <RendererOverlay colorScheme={colorScheme} enableStats={config.scene.enableStats ?? true} />
       </RendererContext.Provider>
     </div>
   );
 }
 
-function mergeSetInto(output: Set<string>, input: ReadonlySet<string>) {
-  for (const value of input) {
-    output.add(value);
+function coordinateFrameList(renderer: Renderer | ReactNull | undefined): SelectEntry[] {
+  if (!renderer) {
+    return [];
   }
+
+  type FrameEntry = { id: string; children: FrameEntry[] };
+
+  const frames = Array.from(renderer.transformTree.frames().values());
+  const frameMap = new Map<string, FrameEntry>(
+    frames.map((frame) => [frame.id, { id: frame.id, children: [] }]),
+  );
+
+  // Create a hierarchy of coordinate frames
+  const rootFrames: FrameEntry[] = [];
+  for (const frame of frames) {
+    const frameEntry = frameMap.get(frame.id)!;
+    const parentId = frame.parent()?.id;
+    if (parentId == undefined) {
+      rootFrames.push(frameEntry);
+    } else {
+      const parent = frameMap.get(parentId);
+      if (parent == undefined) {
+        continue;
+      }
+      parent.children.push(frameEntry);
+    }
+  }
+
+  // Convert the `rootFrames` hierarchy into a flat list of coordinate frames with depth
+  const output: SelectEntry[] = [];
+
+  function addFrame(frame: FrameEntry, depth: number) {
+    const frameName =
+      frame.id === "" || frame.id.startsWith(" ") || frame.id.endsWith(" ")
+        ? `"${frame.id}"`
+        : frame.id;
+    output.push({
+      value: frame.id,
+      label: `${"\u00A0\u00A0".repeat(depth)}${frameName}`,
+    });
+    frame.children.sort((a, b) => a.id.localeCompare(b.id));
+    for (const child of frame.children) {
+      addFrame(child, depth + 1);
+    }
+  }
+
+  rootFrames.sort((a, b) => a.id.localeCompare(b.id));
+  for (const entry of rootFrames) {
+    addFrame(entry, 0);
+  }
+
+  return output;
+}
+
+function buildTopicsToLayerTypes(topics: ReadonlyArray<Topic> | undefined): Map<string, LayerType> {
+  const map = new Map<string, LayerType>();
+  if (!topics) {
+    return map;
+  }
+  for (const topic of topics) {
+    const datatype = topic.datatype;
+    if (SUPPORTED_DATATYPES.has(datatype)) {
+      if (TF_DATATYPES.has(datatype) || TRANSFORM_STAMPED_DATATYPES.has(datatype)) {
+        map.set(topic.name, LayerType.Transform);
+      } else if (MARKER_DATATYPES.has(datatype) || MARKER_ARRAY_DATATYPES.has(datatype)) {
+        map.set(topic.name, LayerType.Marker);
+      } else if (OCCUPANCY_GRID_DATATYPES.has(datatype)) {
+        map.set(topic.name, LayerType.OccupancyGrid);
+      } else if (POINTCLOUD_DATATYPES.has(datatype)) {
+        map.set(topic.name, LayerType.PointCloud);
+      } else if (
+        POSE_STAMPED_DATATYPES.has(datatype) ||
+        POSE_WITH_COVARIANCE_STAMPED_DATATYPES.has(datatype)
+      ) {
+        map.set(topic.name, LayerType.Pose);
+      } else if (CAMERA_INFO_DATATYPES.has(datatype)) {
+        map.set(topic.name, LayerType.CameraInfo);
+      }
+    }
+  }
+  return map;
+}
+
+function updateTopicSettings(
+  renderer: Renderer,
+  topic: string,
+  layerType: LayerType,
+  config: ThreeDeeRenderConfig,
+) {
+  const topicConfig = config.topics[topic];
+  if (!topicConfig) {
+    return;
+  }
+
+  switch (layerType) {
+    case LayerType.Transform:
+      throw new Error(`Attempted to update topic settings for Transform "${topic}"`);
+    case LayerType.Marker:
+      renderer.setMarkerSettings(topic, topicConfig);
+      break;
+    case LayerType.OccupancyGrid:
+      renderer.setOccupancyGridSettings(topic, topicConfig);
+      break;
+    case LayerType.PointCloud:
+      renderer.setPointCloud2Settings(topic, topicConfig);
+      break;
+    case LayerType.Pose:
+      renderer.setPoseSettings(topic, topicConfig);
+      break;
+    case LayerType.CameraInfo:
+      renderer.setCameraInfoSettings(topic, topicConfig);
+      break;
+  }
+  renderer.animationFrame();
 }
