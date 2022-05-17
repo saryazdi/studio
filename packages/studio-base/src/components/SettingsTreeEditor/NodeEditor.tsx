@@ -4,9 +4,10 @@
 
 import ArrowDownIcon from "@mui/icons-material/ArrowDropDown";
 import ArrowRightIcon from "@mui/icons-material/ArrowRight";
+import ErrorIcon from "@mui/icons-material/Error";
 import LayerIcon from "@mui/icons-material/Layers";
 import SettingsIcon from "@mui/icons-material/Settings";
-import { Divider, ListItemProps, styled as muiStyled, Typography } from "@mui/material";
+import { Divider, ListItemProps, styled as muiStyled, Tooltip, Typography } from "@mui/material";
 import { useMemo, useState } from "react";
 import { DeepReadonly } from "ts-essentials";
 
@@ -35,6 +36,7 @@ const NodeHeader = muiStyled("div")<{
   indent: number;
 }>(({ theme, indent }) => {
   return {
+    alignItems: "center",
     display: "flex",
     "&:hover": {
       outline: `1px solid ${theme.palette.primary.main}`,
@@ -125,6 +127,14 @@ function NodeEditorComponent(props: NodeEditorProps): JSX.Element {
               {settings.label ?? "Settings"}
             </Typography>
           </NodeHeaderToggle>
+          {props.settings?.error && (
+            <Tooltip
+              arrow
+              title={<Typography variant="subtitle1">{props.settings.error}</Typography>}
+            >
+              <ErrorIcon color="error" fontSize="small" />
+            </Tooltip>
+          )}
           <VisibilityToggle
             edge="end"
             size="small"

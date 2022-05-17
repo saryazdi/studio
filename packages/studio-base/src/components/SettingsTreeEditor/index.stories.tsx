@@ -188,6 +188,7 @@ const TopicSettings: SettingsTreeNode = {
       children: {
         drivable_area: {
           label: "/drivable_area",
+          error: "Topic error message",
           visible: true,
           fields: {
             frame_lock: {
