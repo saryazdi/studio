@@ -2,11 +2,9 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
-import { simplify } from "intervals-fn";
 import { isEqual } from "lodash";
 import { v4 as uuidv4 } from "uuid";
 
-import { filterMap } from "@foxglove/den/collection";
 import Log from "@foxglove/log";
 import {
   Time,
@@ -15,8 +13,6 @@ import {
   clampTime,
   fromMillis,
   fromNanoSec,
-  toNanoSec,
-  subtract as subtractTimes,
   toString,
 } from "@foxglove/rostime";
 import { MessageEvent, ParameterValue } from "@foxglove/studio";
@@ -33,13 +29,13 @@ import {
   Topic,
   PlayerPresence,
   PlayerCapabilities,
-  MessageBlock,
   TopicStats,
 } from "@foxglove/studio-base/players/types";
 import { RosDatatypes } from "@foxglove/studio-base/types/RosDatatypes";
 import delay from "@foxglove/studio-base/util/delay";
 import { SEEK_ON_START_NS, TimestampMethod } from "@foxglove/studio-base/util/time";
 
+import { BlockLoader } from "./BlockLoader";
 import { IIterableSource, IteratorResult } from "./IIterableSource";
 
 const log = Log.getLogger(__filename);
@@ -159,10 +155,6 @@ export class IterablePlayer implements Player {
   // exit after reaching a specific time can do so even if the iterator does not emit any messages.
   private _iteratorDurationNanos: number = 1e9;
 
-  // Blocks is a sparse array of MessageBlock.
-  private _blocks: (MessageBlock | undefined)[] = [];
-  private _blockDurationNanos: number = 0;
-
   private _iterableSource: IIterableSource;
 
   // Some states register an abort controller to signal they should abort
@@ -170,6 +162,8 @@ export class IterablePlayer implements Player {
 
   // The iterator for processing ticks. This persists between tick calls and is cleared when changing state.
   private _tickIterator?: AsyncIterator<Readonly<IteratorResult>>;
+
+  private _blockLoader?: BlockLoader;
 
   private readonly _sourceId: string;
 
@@ -258,7 +252,7 @@ export class IterablePlayer implements Player {
     }
 
     this._allTopics = allTopics;
-    this._partialTopics = partialTopics;
+    this._blockLoader?.setTopics(this._partialTopics);
 
     // Once we are in an active state (i.e. done initializing), we use seeking to indicate
     // that subscriptions have changed so restart our loading
@@ -425,6 +419,7 @@ export class IterablePlayer implements Player {
       }
 
       // --- setup blocks
+      /*
       const totalNs = Number(toNanoSec(subtractTimes(this._end, this._start))) + 1; // +1 since times are inclusive.
       if (totalNs > Number.MAX_SAFE_INTEGER * 0.9) {
         throw new Error("Time range is too long to be supported");
@@ -433,17 +428,21 @@ export class IterablePlayer implements Player {
       this._blockDurationNanos = Math.ceil(
         Math.max(MIN_MEM_CACHE_BLOCK_SIZE_NS, totalNs / MAX_BLOCKS),
       );
+      */
 
       if (blockDurationNanos != undefined) {
         this._iteratorDurationNanos = blockDurationNanos;
-        this._blockDurationNanos = blockDurationNanos;
       }
 
-      const blockCount = Math.ceil(totalNs / this._blockDurationNanos);
-
-      log.debug(`Block count: ${blockCount}`);
-
-      this._blocks = Array.from({ length: blockCount });
+      this._blockLoader = new BlockLoader({
+        cacheSizeBytes: DEFAULT_CACHE_SIZE_BYTES,
+        source: this._iterableSource,
+        start: this._start,
+        end: this._end,
+        blockDurationNs: blockDurationNanos,
+        maxBlocks: MAX_BLOCKS,
+        minBlockDurationNs: MIN_MEM_CACHE_BLOCK_SIZE_NS,
+      });
     } catch (error) {
       this._setError(`Error initializing: ${error.message}`, error);
     }
@@ -875,473 +874,27 @@ export class IterablePlayer implements Player {
       return;
     }
 
+    // fixme - how do we know when to abort block loading?
+
     // During playback, we let the statePlay method emit state
     // When idle, we can emit state
     const shouldEmit = opt?.emit ?? true;
 
     let nextEmit = 0;
-
-    log.info("Start block load", time);
-
-    const topics = this._partialTopics;
-
-    // Block caching works on the assumption that when seeking, the user wants to look at some
-    // data before and after the current time.
-    //
-    // When we start to load blocks, we start at 1 second before _time_ and load to the end.
-    // Then we load from the start to 1 second before.
-    //
-    // Evict blocks closer to the end? What is end?
-    // Once we are out of blocks to evict, stop iterating the stream
-
-    const startTime = subtractTimes(subtractTimes(time, this._start), { sec: 1, nsec: 0 });
-
-    // turn startTime into a block ID with a min block id of 0
-    const startNs = Math.max(0, Number(toNanoSec(startTime)));
-    const beginBlockId = Math.floor(startNs / this._blockDurationNanos);
-
-    const startBlockId = 0;
-    const endBlockId = this._blocks.length - 1;
-
-    // The load order is from [beginBlock to endBlock], then [startBlock, beginBlock)
-    // Reversing this order produces the evict queue
-    const loadQueue: number[] = [];
-
-    for (let i = beginBlockId; i <= endBlockId; ++i) {
-      loadQueue.push(i);
-    }
-    for (let i = startBlockId; i < beginBlockId; ++i) {
-      loadQueue.push(i);
-    }
-
-    const evictQueue = loadQueue.reverse();
-
-    // When the list of topics changes, we want to avoid loading topics if the block already has the topic.
-    // Create spans of blocks based on which topics they need. This allows us to make larger requests
-    // for message data from the source which typically reduces latencies.
-
-    // A BlockSpan is a continuous set of blocks and topics to load for those blocks
-    type BlockSpan = {
-      beginId: number;
-      endId: number;
-      topics: Set<string>;
-    };
-    const blockSpans: BlockSpan[] = [];
-
-    let activeSpan: BlockSpan | undefined;
-    for (let i = beginBlockId; i <= endBlockId; ++i) {
-      // compute the topics this block needs
-      const existingBlock = this._blocks[i];
-      const blockTopics = existingBlock ? Object.keys(existingBlock.messagesByTopic) : [];
-
-      const topicsToFetch = new Set(topics);
-      for (const topic of blockTopics) {
-        topicsToFetch.delete(topic);
-      }
-
-      if (!activeSpan) {
-        activeSpan = {
-          beginId: i,
-          endId: i,
-          topics: topicsToFetch,
-        };
-        continue;
-      }
-
-      // compare this with the topics of the active span
-
-      // If the topics of the active span equal the topics to fetch, grow the span
-      if (isEqual(activeSpan.topics, topicsToFetch)) {
-        activeSpan.endId = i;
-        continue;
-      }
-
-      blockSpans.push(activeSpan);
-      activeSpan = {
-        beginId: i,
-        endId: i,
-        topics: topicsToFetch,
-      };
-    }
-    if (activeSpan) {
-      blockSpans.push(activeSpan);
-    }
-
-    // fixme - now cover start to beginBlockId...
-
-    console.log(blockSpans);
-
-    // Load all the spans, each span is a separate iterator because it requires different topics
-    for (const span of blockSpans) {
-      // No need to load spans with no topics
-      if (span.topics.size === 0) {
-        continue;
-      }
-      console.log(span);
-
-      // Start and end time are inclusive
-      const iteratorStartTime = add(
-        this._start,
-        fromNanoSec(BigInt(span.beginId * this._blockDurationNanos)),
-      );
-      const iteratorEndTime = add(
-        this._start,
-        fromNanoSec(BigInt(span.endId * this._blockDurationNanos + this._blockDurationNanos)),
-      );
-
-      // Make an iterator to read this block
-      // fixme - we don't ever return this iterator
-
-      // fixme - remember that an iterator can produce no messages
-      // this means there were no messages for the range user wanted
-      const iterator = this._iterableSource.messageIterator({
-        topics: Array.from(span.topics),
-        start: iteratorStartTime,
-        end: iteratorEndTime,
-      });
-
-      // fixme - A block is created when all the messages for its time would fall into the block
-      // As we read messages from the iterator, we need to determine when we move to the next block
-
-      let messagesByTopic: Record<string, MessageEvent<unknown>[]> = {};
-      // Set all topic arrays to empty to indicate we've read this topic
-      for (const topic of span.topics) {
-        messagesByTopic[topic] = [];
-      }
-
-      let blockId = span.beginId;
-      const nextBlockTime = add(iteratorStartTime, fromNanoSec(BigInt(this._blockDurationNanos)));
-
-      const sizeInBytes = 0;
-      for (;;) {
-        const result = await iterator.next();
-        if (result.done === true) {
-          // no more messages, write the block
-          const existingBlock = this._blocks[blockId];
-          const block = {
-            messagesByTopic: {
-              ...existingBlock?.messagesByTopic,
-              ...messagesByTopic,
-            },
-            sizeInBytes: sizeInBytes + (existingBlock?.sizeInBytes ?? 0),
-          };
-
-          this._blocks[blockId] = block;
-          break;
-        }
-        const iterResult = result.value; // State change requested, bail
-        if (this._nextState) {
-          await iterator.return?.();
-          return;
-        }
-
-        if (iterResult.problem) {
-          this._problemManager.addProblem(`connid-${iterResult.connectionId}`, iterResult.problem);
-          continue;
-        }
-
-        // fixme - put eviction somewhere...
-
-        // message is done, write the block
-        if (compare(iterResult.msgEvent.receiveTime, nextBlockTime) > 0) {
-          const existingBlock = this._blocks[blockId];
-          const block = {
-            messagesByTopic: {
-              ...existingBlock?.messagesByTopic,
-              ...messagesByTopic,
-            },
-            sizeInBytes: sizeInBytes + (existingBlock?.sizeInBytes ?? 0),
-          };
-
-          this._blocks[blockId] = block;
-
-          blockId += 1;
-
-          // start a new message batch
-          messagesByTopic = {};
-          // Set all topic arrays to empty to indicate we've read this topic
-          for (const topic of span.topics) {
-            messagesByTopic[topic] = [];
-          }
-
-          const fullyLoadedFractionRanges = simplify(
-            filterMap(this._blocks, (thisBlock, blockIndex) => {
-              if (!thisBlock) {
-                return;
-              }
-
-              for (const topic of topics) {
-                if (!thisBlock.messagesByTopic[topic]) {
-                  return;
-                }
-              }
-
-              return {
-                start: blockIndex,
-                end: blockIndex + 1,
-              };
-            }),
-          );
-
-          this._progress = {
-            fullyLoadedFractionRanges: fullyLoadedFractionRanges.map((range) => ({
-              // Convert block ranges into fractions.
-              start: range.start / this._blocks.length,
-              end: range.end / this._blocks.length,
-            })),
-            messageCache: {
-              blocks: this._blocks.slice(),
-              startTime: this._start,
-            },
-          };
-        }
-
-        const msgTopic = iterResult.msgEvent.topic;
-        const events = messagesByTopic[msgTopic];
-        if (!events) {
-          this._problemManager.addProblem(`exexpected-topic-${msgTopic}`, {
-            severity: "error",
-            message: `Received a messaged on an unexpected topic: ${msgTopic}.`,
-          });
-          continue;
-        }
-        this._problemManager.removeProblem(`exexpected-topic-${msgTopic}`);
-
-        //const messageSizeInBytes = iterResult.msgEvent.sizeInBytes;
-        //sizeInBytes += messageSizeInBytes;
-
-        //totalBlockSizeBytes += messageSizeInBytes;
-        events.push(iterResult.msgEvent);
-
-        // We throttle emitting the state since we could be loading blocks
-        // faster than 60fps and it is actually slower to try rendering with each
-        // new block compared to spacing out the rendering.
-        if (shouldEmit && Date.now() >= nextEmit) {
-          await this._emitState();
-          nextEmit = Date.now() + 100;
-        }
-      }
-    }
-
-    if (shouldEmit) {
-      await this._emitState();
-    }
-
-    return;
-
-    // -----
-
-    /*
-    // instead of this strange bouncing around, when we seek, load the data from 1 second before
-    // to the end
-    // then go back and load the data from start to 1 second before
-
-    // this way we can use longer iterators which typically works faster and better in practice
-    //
-
-    // Block caching works on the assumption that we are more likely to want the blocks in proximity
-    // to the _time_. This includes blocks ahead and behind the time.
-    //
-    // We build a _loadQueue_ which is an array of block ids to load. The load queue is
-    // organized such that we populate blocks outward from the requested load time. Blocks closest
-    // to the load time are loaded and blocks furthest from the load time are eligible for eviction.
-    //
-    // To build the load queue, two arrays are created. Pre and Post. Pre contains block ids before
-    // the desired start block, and post ids after. For the load queue, we reverse pre and alternate
-    // selecting ids from post and pre.
-    //
-    // Example set of block ids: 0, 1, 2, 3, 4, 5, 6, 7
-    // Lets say id 2 is the startBlockId
-    // Reversed Pre: 1, 0
-    // Post: 3, 4, 5, 6, 7
-    //
-    // Load queue: 2, 3, 1, 4, 0, 5, 6, 7
-    //
-    // Block ID 2 is considered first for loading and block ID 7 is evictable
-    const preIds = [];
-    const postIds = [];
-    for (let idx = 0; idx < this._blocks.length; ++idx) {
-      if (idx < startBlockId) {
-        preIds.push(idx);
-      } else if (idx > startBlockId) {
-        postIds.push(idx);
-      }
-    }
-
-    preIds.reverse();
-
-    const loadQueue: number[] = [startBlockId];
-    while (preIds.length > 0 || postIds.length > 0) {
-      const postId = postIds.shift();
-      if (postId != undefined) {
-        loadQueue.push(postId);
-      }
-      const preId = preIds.shift();
-      if (preId != undefined) {
-        loadQueue.push(preId);
-      }
-    }
-
-    let totalBlockSizeBytes = this._blocks.reduce((prev, block) => {
-      if (!block) {
-        return prev;
-      }
-
-      return prev + block.sizeInBytes;
-    }, 0);
-
-    while (loadQueue.length > 0) {
-      const idx = loadQueue.shift();
-      if (idx == undefined) {
-        break;
-      }
-
-      const existingBlock = this._blocks[idx];
-      const blockTopics = existingBlock ? Object.keys(existingBlock.messagesByTopic) : [];
-
-      const topicsToFetch = new Set(topics);
-      for (const topic of blockTopics) {
-        topicsToFetch.delete(topic);
-      }
-
-      // This block has all the topics
-      if (topicsToFetch.size === 0) {
-        continue;
-      }
-
-      // Block start and end time are inclusive
-      const blockStartTime = add(this._start, fromNanoSec(BigInt(idx * this._blockDurationNanos)));
-      const blockEndTime = add(blockStartTime, fromNanoSec(BigInt(this._blockDurationNanos)));
-
-      // Make an iterator to read this block
-      // fixme - we don't ever return this iterator
-      const iterator = this._iterableSource.messageIterator({
-        topics: Array.from(topicsToFetch),
-        start: blockStartTime,
-        end: blockEndTime,
-      });
-
-      const messagesByTopic: Record<string, MessageEvent<unknown>[]> = {};
-      // Set all topic arrays to empty to indicate we've read this topic
-      for (const topic of topicsToFetch) {
-        messagesByTopic[topic] = [];
-      }
-
-      let sizeInBytes = 0;
-      for (;;) {
-        const result = await iterator.next();
-        if (result.done === true) {
-          break;
-        }
-        const iterResult = result.value; // State change requested, bail
-        if (this._nextState) {
-          await iterator.return?.();
-          return;
-        }
-
-        if (iterResult.problem) {
-          this._problemManager.addProblem(`connid-${iterResult.connectionId}`, iterResult.problem);
-          continue;
-        }
-
-        if (compare(iterResult.msgEvent.receiveTime, blockEndTime) > 0) {
-          break;
-        }
-
-        const msgTopic = iterResult.msgEvent.topic;
-        const events = messagesByTopic[msgTopic];
-        if (!events) {
-          this._problemManager.addProblem(`exexpected-topic-${msgTopic}`, {
-            severity: "error",
-            message: `Received a messaged on an unexpected topic: ${msgTopic}.`,
-          });
-          continue;
-        }
-        this._problemManager.removeProblem(`exexpected-topic-${msgTopic}`);
-
-        const messageSizeInBytes = iterResult.msgEvent.sizeInBytes;
-        sizeInBytes += messageSizeInBytes;
-
-        // Adding this message will exceed the cache size
-        // Evict blocks until we have enough size for the message
-        while (
-          loadQueue.length > 0 &&
-          totalBlockSizeBytes + messageSizeInBytes > DEFAULT_CACHE_SIZE_BYTES
-        ) {
-          const lastBlockIdx = loadQueue.pop();
-          if (lastBlockIdx != undefined) {
-            const lastBlock = this._blocks[lastBlockIdx];
-            this._blocks[lastBlockIdx] = undefined;
-            if (lastBlock) {
-              totalBlockSizeBytes -= lastBlock.sizeInBytes;
-              totalBlockSizeBytes = Math.max(0, totalBlockSizeBytes);
-            }
-          }
-        }
-
-        totalBlockSizeBytes += messageSizeInBytes;
-        events.push(iterResult.msgEvent);
-      }
-
-      await iterator.return?.();
-      const block = {
-        messagesByTopic: {
-          ...existingBlock?.messagesByTopic,
-          ...messagesByTopic,
-        },
-        sizeInBytes: sizeInBytes + (existingBlock?.sizeInBytes ?? 0),
-      };
-
-      this._blocks[idx] = block;
-
-      const fullyLoadedFractionRanges = simplify(
-        filterMap(this._blocks, (thisBlock, blockIndex) => {
-          if (!thisBlock) {
-            return;
-          }
-
-          for (const topic of topics) {
-            if (!thisBlock.messagesByTopic[topic]) {
-              return;
-            }
-          }
-
-          return {
-            start: blockIndex,
-            end: blockIndex + 1,
-          };
-        }),
-      );
-
-      this._progress = {
-        fullyLoadedFractionRanges: fullyLoadedFractionRanges.map((range) => ({
-          // Convert block ranges into fractions.
-          start: range.start / this._blocks.length,
-          end: range.end / this._blocks.length,
-        })),
-        messageCache: {
-          blocks: this._blocks.slice(),
-          startTime: this._start,
-        },
-      };
-
-      // State change requested, bail
-      if (this._nextState) {
-        return;
-      }
-
-      // We throttle emitting the state since we could be loading blocks
-      // faster than 60fps and it is actually slower to try rendering with each
-      // new block compared to spacing out the rendering.
+    await this._blockLoader?.load(time, async (progress) => {
+      this._progress = progress;
+
+      // We throttle emitting the state since we could be loading blocks faster than 60fps and it
+      // is actually slower to try rendering with each new block compared to spacing out the
+      // rendering.
       if (shouldEmit && Date.now() >= nextEmit) {
         await this._emitState();
         nextEmit = Date.now() + 100;
       }
-    }
+    });
 
     if (shouldEmit) {
       await this._emitState();
     }
-    */
   }
 }
