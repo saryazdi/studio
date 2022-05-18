@@ -249,6 +249,7 @@ export default function muiComponents(theme: Theme): ThemeOptions["components"] 
       styleOverrides: {
         root: {
           lineHeight: theme.spacing(4),
+          backgroundColor: "transparent",
         },
       },
     },

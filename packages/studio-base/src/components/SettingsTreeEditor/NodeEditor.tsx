@@ -31,11 +31,12 @@ const FieldsBottomPad = muiStyled("div", { skipSx: true })(({ theme }) => ({
   height: theme.spacing(0.5),
 }));
 
-const NodeHeader = muiStyled("div")<{
+export const NodeHeader = muiStyled("div")<{
   indent: number;
 }>(({ theme, indent }) => {
   return {
     display: "flex",
+    alignItems: "center",
     "&:hover": {
       outline: `1px solid ${theme.palette.primary.main}`,
       outlineOffset: -1,
@@ -47,7 +48,7 @@ const NodeHeader = muiStyled("div")<{
   };
 });
 
-const NodeHeaderToggle = muiStyled("div")<{ indent: number }>(({ theme, indent }) => {
+export const NodeHeaderToggle = muiStyled("div")<{ indent: number }>(({ theme, indent }) => {
   return {
     display: "flex",
     alignItems: "center",
