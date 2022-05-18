@@ -11,7 +11,6 @@ import SearchIcon from "@mui/icons-material/Search";
 import TextFieldsIcon from "@mui/icons-material/TextFields";
 import {
   AppBar,
-  Button,
   Divider,
   IconButton,
   InputBase,
