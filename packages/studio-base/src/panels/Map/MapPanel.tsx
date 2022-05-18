@@ -85,10 +85,22 @@ function buildSettingsTree(config: Config, eligibleTopics: string[]): SettingsTr
 
   // Only show the custom url input when the user selects the custom layer
   if (config.layer === "custom") {
+    let error: string | undefined;
+    if (config.customTileUrl.length > 0) {
+      const placeholders = config.customTileUrl.match(/\{.+?\}/g) ?? [];
+      const validPlaceholders = ["{x}", "{y}", "{z}"];
+      for (const placeholder of placeholders) {
+        if (!validPlaceholders.includes(placeholder) && !error) {
+          error = `Invalid placeholder ${placeholder}`;
+        }
+      }
+    }
+
     generalSettings.customTileUrl = {
       label: "Custom map tile URL",
       input: "string",
       value: config.customTileUrl,
+      error,
     };
   }
 
