@@ -347,7 +347,7 @@ function FieldEditorComponent({
 }): JSX.Element {
   const theme = useTheme();
   const indent = Math.min(path.length, 4);
-  const paddingLeft = 2 + 2 * Math.max(0, indent - 1);
+  const paddingLeft = 2 + 2 * indent;
 
   return (
     <>
@@ -371,6 +371,7 @@ function FieldEditorComponent({
       >
         <FieldInput actionHandler={actionHandler} field={field} path={path} />
       </div>
+      <div style={{ gridColumn: "span 2", height: theme.spacing(0.25) }} />
     </>
   );
 }
