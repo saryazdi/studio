@@ -17,7 +17,7 @@ import { InputBase, Typography } from "@mui/material";
 import produce from "immer";
 import { compact, set, uniq } from "lodash";
 import memoizeWeak from "memoize-weak";
-import { useEffect, useCallback, useMemo, ComponentProps } from "react";
+import { useEffect, useCallback, useMemo, ComponentProps, ChangeEvent } from "react";
 
 import { filterMap } from "@foxglove/den/collection";
 import { useShallowMemo } from "@foxglove/hooks";
@@ -469,13 +469,10 @@ function Plot(props: Props) {
   }, [actionHandler, config, panelId, updatePanelSettingsTree]);
 
   const handleTitleChange = useCallback(
-    (event) => {
-      updatePanelSettingsTree(panelId, {
-        actionHandler,
-        roots: buildSettingsTree({ ...config, title: event.target.value }),
-      });
+    (event: ChangeEvent<HTMLInputElement>) => {
+      saveConfig({ title: event.target.value });
     },
-    [actionHandler, config, panelId, updatePanelSettingsTree],
+    [saveConfig],
   );
 
   const stackDirection = useMemo(
