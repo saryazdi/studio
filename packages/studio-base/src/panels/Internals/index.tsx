@@ -195,7 +195,7 @@ function Internals() {
             color: "text.secondary",
           }}
         />
-        <Stack direction="row" flex="auto" flexWrap="wrap" paddingX={2} gap={1}>
+        <Stack direction="row" flex="auto" wrap="wrap" paddingX={2} gap={1}>
           <Button
             variant="contained"
             disableRipple

@@ -86,7 +86,6 @@ export default function Stack(props: PropsWithChildren<StackProps>): JSX.Element
     flexBasis,
     flexGrow,
     flexShrink,
-    flexWrap,
     fullHeight = false,
     fullWidth = false,
     gap,
@@ -120,7 +119,6 @@ export default function Stack(props: PropsWithChildren<StackProps>): JSX.Element
     flexBasis,
     flexGrow,
     flexShrink,
-    flexWrap,
     fullHeight,
     fullWidth,
     gap,
@@ -240,22 +238,19 @@ export type StackProps = {
   position?: CSSProperties["position"];
 
   /** Defines the `flex` style property. */
-  flex?: CSSProperties["flex"];
+  flex?: number | string;
 
   /** Defines the `flex-grow` style property. */
-  flexGrow?: CSSProperties["flexGrow"];
+  flexGrow?: number;
 
   /** Defines the `flex-shrink` style property. */
-  flexShrink?: CSSProperties["flexShrink"];
+  flexShrink?: number;
 
   /** Defines the `flex-basis` style property. */
-  flexBasis?: CSSProperties["flexBasis"];
-
-  /** Defines the `flex-wrap` style property. */
-  flexWrap?: CSSProperties["flexWrap"];
+  flexBasis?: number | string;
 
   /** Defines the `order` property. */
-  order?: CSSProperties["order"];
+  order?: number;
 
   /** Sets the minWidth to zero */
   zeroMinWidth?: boolean;
