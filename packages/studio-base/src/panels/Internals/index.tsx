@@ -214,7 +214,6 @@ function Internals() {
             aria-haspopup="true"
             aria-expanded={menuOpen ? "true" : undefined}
             onClick={handleMenuClick}
-            data-test="internals-record-button"
             color="inherit"
             variant="contained"
             endIcon={<ArrowDropDownIcon />}
@@ -272,13 +271,13 @@ function Internals() {
           )}
         </Stack>
         <Grid container spacing={2} padding={2} paddingTop={4}>
-          <Grid item xs={6}>
+          <Grid item component="section" xs={6} data-test="internals-subscriptions">
             <Typography variant="h4" fontWeight={600} gutterBottom>
               Subscriptions
             </Typography>
             {renderedSubscriptions}
           </Grid>
-          <Grid item xs={6}>
+          <Grid item component="section" xs={6} data-test="internals-publishers">
             <Typography variant="h4" fontWeight={600} gutterBottom>
               Publishers
             </Typography>
