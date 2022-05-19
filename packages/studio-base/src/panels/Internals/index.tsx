@@ -11,21 +11,26 @@
 //   found at http://www.apache.org/licenses/LICENSE-2.0
 //   You may not use this file except in compliance with the License.
 
-import { Stack } from "@mui/material";
+import ArrowDropDownIcon from "@mui/icons-material/ArrowDropDown";
+import DataObjectIcon from "@mui/icons-material/DataObject";
+import {
+  Button,
+  CardHeader,
+  CircularProgress,
+  Grid,
+  Menu,
+  MenuItem,
+  Typography,
+} from "@mui/material";
 import { groupBy, sortBy } from "lodash";
-import { Fragment, useCallback } from "react";
-import styled from "styled-components";
+import { Fragment, useCallback, useState } from "react";
 
 import { filterMap } from "@foxglove/den/collection";
 import * as PanelAPI from "@foxglove/studio-base/PanelAPI";
-import Button from "@foxglove/studio-base/components/Button";
-import Dropdown from "@foxglove/studio-base/components/Dropdown";
-import DropdownItem from "@foxglove/studio-base/components/Dropdown/DropdownItem";
-import { Item } from "@foxglove/studio-base/components/Menu";
 import { useMessagePipeline } from "@foxglove/studio-base/components/MessagePipeline";
 import Panel from "@foxglove/studio-base/components/Panel";
 import PanelToolbar from "@foxglove/studio-base/components/PanelToolbar";
-import TextContent from "@foxglove/studio-base/components/TextContent";
+import Stack from "@foxglove/studio-base/components/Stack";
 import {
   Topic,
   MessageEvent,
@@ -38,26 +43,6 @@ import { getTopicsByTopicName } from "@foxglove/studio-base/util/selectors";
 import helpContent from "./index.help.md";
 
 const RECORD_ALL = "RECORD_ALL";
-
-const Container = styled.div`
-  padding: 16px;
-  overflow-y: auto;
-  ul {
-    font-size: 10px;
-    margin-left: 8px;
-  }
-  li {
-    margin: 4px 0;
-  }
-  h1 {
-    font-size: 1.5em;
-    margin-bottom: 0.5em;
-  }
-  section {
-    flex: 1 1 50%;
-    overflow: hidden;
-  }
-`;
 
 function getSubscriptionGroup({ requester }: SubscribePayload): string {
   if (!requester) {
@@ -107,6 +92,8 @@ const HistoryRecorder = React.memo(function HistoryRecorder({
 
 // Display internal state for debugging and viewing topic dependencies.
 function Internals() {
+  const [menuAnchorEl, setMenuAnchorEl] = useState<undefined | HTMLElement>(undefined);
+  const menuOpen = Boolean(menuAnchorEl);
   const { topics } = PanelAPI.useDataSourceInfo();
   const topicsByName = React.useMemo(() => getTopicsByTopicName(topics), [topics]);
   const subscriptions = useMessagePipeline(
@@ -115,6 +102,12 @@ function Internals() {
   const publishers = useMessagePipeline(
     useCallback(({ publishers: pipelinePublishers }) => pipelinePublishers, []),
   );
+  const handleMenuClick = (event: React.MouseEvent<HTMLButtonElement>) => {
+    setMenuAnchorEl(event.currentTarget);
+  };
+  const handleMenuClose = () => {
+    setMenuAnchorEl(undefined);
+  };
 
   const [groupedSubscriptions, subscriptionGroups] = React.useMemo(() => {
     const grouped = groupBy(subscriptions, getSubscriptionGroup);
@@ -131,9 +124,9 @@ function Internals() {
         return (
           <Fragment key={key}>
             <div style={{ marginTop: 16 }}>{key}:</div>
-            <ul>
+            <ul style={{ fontSize: 10, marginLeft: 8 }}>
               {sortBy(groupedSubscriptions[key], (sub) => sub.topic).map((sub, i) => (
-                <li key={i}>
+                <li key={i} style={{ margin: "4px 0" }}>
                   <code>{sub.topic}</code>
                 </li>
               ))}
@@ -154,9 +147,9 @@ function Internals() {
         return (
           <Fragment key={key}>
             <div style={{ marginTop: 16 }}>{key}:</div>
-            <ul>
+            <ul style={{ fontSize: 10, marginLeft: 8 }}>
               {sortBy(groupedPublishers[key], (sub) => sub.topic).map((sub, i) => (
-                <li key={i}>
+                <li key={i} style={{ margin: "4px 0" }}>
                   <code>{sub.topic}</code>
                 </li>
               ))}
@@ -187,56 +180,113 @@ function Internals() {
   }
 
   return (
-    <Container>
+    <Stack fullHeight>
       <PanelToolbar helpContent={helpContent} />
-      <h1>Recording</h1>
-      <TextContent>
-        Press to start recording topic data for debug purposes. The latest messages on each topic
-        will be kept and formatted into a fixture that can be used to create a test.
-      </TextContent>
-      <Stack direction="row" flex="auto" flexWrap="wrap" paddingTop={1} paddingBottom={4}>
-        <Button isPrimary small onClick={onRecordClick} data-test="internals-record-button">
-          {recordingTopics ? `Recording ${recordingTopics.length} topics…` : "Record raw data"}
-        </Button>
-        <Dropdown
-          disabled={!!recordingTopics}
-          text={`Record from: ${recordGroup === RECORD_ALL ? "All panels" : recordGroup}`}
-          value={recordGroup}
-          onChange={(value) => setRecordGroup(value)}
-        >
-          <DropdownItem value={RECORD_ALL}>
-            <Item>All panels</Item>
-          </DropdownItem>
-          {subscriptionGroups.map((group) => (
-            <DropdownItem key={group} value={group}>
-              <Item>{group}</Item>
-            </DropdownItem>
-          ))}
-        </Dropdown>
-        {recordingTopics && (
-          <Button small onClick={downloadJSON} data-test="internals-download-button">
-            Download JSON
+      <Stack overflowY="auto">
+        <CardHeader
+          title="Recording"
+          titleTypographyProps={{
+            variant: "h3",
+            fontWeight: 600,
+          }}
+          subheader="Press to start recording topic data for debug purposes. The latest messages on each topic will be kept and formatted into a fixture that can be used to create a test."
+          subheaderTypographyProps={{
+            variant: "body2",
+            color: "text.secondary",
+          }}
+        />
+        <Stack direction="row" flex="auto" flexWrap="wrap" paddingX={2} gap={1}>
+          <Button
+            variant="contained"
+            disableRipple
+            data-test="internals-record-button"
+            color={recordingTopics ? "error" : "primary"}
+            onClick={onRecordClick}
+            endIcon={recordingTopics && <CircularProgress color="inherit" size={14} />}
+          >
+            {recordingTopics ? `Recording ${recordingTopics.length} topics…` : "Record raw data"}
           </Button>
-        )}
-        {recordingTopics && (
-          <HistoryRecorder
-            topicsByName={topicsByName}
-            recordingTopics={recordingTopics}
-            recordedData={recordedData}
-          />
-        )}
+          <Button
+            disabled={!!recordingTopics}
+            disableRipple
+            id="recording-topics-button"
+            aria-controls={menuOpen ? "recording-topics-menu" : undefined}
+            aria-haspopup="true"
+            aria-expanded={menuOpen ? "true" : undefined}
+            onClick={handleMenuClick}
+            data-test="internals-record-button"
+            color="inherit"
+            variant="contained"
+            endIcon={<ArrowDropDownIcon />}
+          >
+            {`Record from: ${recordGroup === RECORD_ALL ? "All panels" : recordGroup}`}
+          </Button>
+          <Menu
+            id="recording-topics-menu"
+            anchorEl={menuAnchorEl}
+            open={menuOpen}
+            onClose={handleMenuClose}
+            MenuListProps={{
+              "aria-labelledby": "recording-topics-button",
+              dense: true,
+            }}
+          >
+            <MenuItem
+              onClick={() => {
+                setRecordGroup(RECORD_ALL);
+                handleMenuClose();
+              }}
+            >
+              All panels
+            </MenuItem>
+            {subscriptionGroups.map((group) => (
+              <MenuItem
+                key={group}
+                onClick={() => {
+                  setRecordGroup(group);
+                  handleMenuClose();
+                }}
+              >
+                {group}
+              </MenuItem>
+            ))}
+          </Menu>
+          {recordingTopics && (
+            <Button
+              size="small"
+              variant="contained"
+              color="inherit"
+              onClick={downloadJSON}
+              data-test="internals-download-button"
+              startIcon={<DataObjectIcon />}
+            >
+              Download JSON
+            </Button>
+          )}
+          {recordingTopics && (
+            <HistoryRecorder
+              topicsByName={topicsByName}
+              recordingTopics={recordingTopics}
+              recordedData={recordedData}
+            />
+          )}
+        </Stack>
+        <Grid container spacing={2} padding={2} paddingTop={4}>
+          <Grid item xs={6}>
+            <Typography variant="h4" fontWeight={600} gutterBottom>
+              Subscriptions
+            </Typography>
+            {renderedSubscriptions}
+          </Grid>
+          <Grid item xs={6}>
+            <Typography variant="h4" fontWeight={600} gutterBottom>
+              Publishers
+            </Typography>
+            {renderedPublishers}
+          </Grid>
+        </Grid>
       </Stack>
-      <Stack direction="row" flex="auto">
-        <section data-test="internals-subscriptions">
-          <h1>Subscriptions</h1>
-          {renderedSubscriptions}
-        </section>
-        <section data-test="internals-publishers">
-          <h1>Publishers</h1>
-          {renderedPublishers}
-        </section>
-      </Stack>
-    </Container>
+    </Stack>
   );
 }
 Internals.panelType = "Internals";
