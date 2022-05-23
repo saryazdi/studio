@@ -337,9 +337,16 @@ export default function LayoutBrowser({
         const file = await fileHandle.getFile();
         const layoutName = path.basename(file.name, path.extname(file.name));
         const content = await file.text();
-        const parsedState: unknown = JSON.parse(content);
 
         if (!isMounted()) {
+          return;
+        }
+
+        let parsedState: unknown;
+        try {
+          parsedState = JSON.parse(content);
+        } catch (err) {
+          addToast(`${file.name} is not a valid layout: ${err.message}`, { appearance: "error" });
           return;
         }
 
