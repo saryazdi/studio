@@ -14,6 +14,7 @@ import {
   Player,
   PlayerCapabilities,
   PlayerState,
+  PublishPayload,
   SubscribePayload,
   Topic,
   PlayerPresence,
@@ -31,7 +32,7 @@ const log = Log.getLogger(__dirname);
 /** Suppress warnings about messages on unknown subscriptions if the susbscription was recently canceled. */
 const SUBSCRIPTION_WARNING_SUPPRESSION_MS = 2000;
 
-const CAPABILITIES: typeof PlayerCapabilities[keyof typeof PlayerCapabilities][] = [];
+const CAPABILITIES = [PlayerCapabilities.advertise];
 
 const ZERO_TIME = Object.freeze({ sec: 0, nsec: 0 });
 
@@ -58,6 +59,9 @@ export default class FoxgloveWebSocketPlayer implements Player {
   private _lastSeekTime = 0;
   private _currentTime?: Time;
 
+  private _publisherIdsByTopic = new Map<string, ChannelId>(); // active publishers for the current connection
+  private _textEncoder = new TextEncoder();
+  private _advertisements: AdvertiseOptions[] = []; // which topics we want to advertise to other nodes
   private _unresolvedSubscriptions = new Set<string>();
   private _resolvedSubscriptionsByTopic = new Map<string, SubscriptionId>();
   private _resolvedSubscriptionsById = new Map<SubscriptionId, ResolvedChannel>();
@@ -436,17 +440,93 @@ export default class FoxgloveWebSocketPlayer implements Player {
   }
 
   setPublishers(publishers: AdvertiseOptions[]): void {
-    if (publishers.length > 0) {
-      throw new Error("Publishing is not supported by the Foxglove WebSocket connection");
+    // Since `setPublishers` is rarely called, we can get away with just throwing away the old
+    // Roslib.Topic objects and creating new ones.
+    for (const topic of this._publisherIdsByTopic.keys()) {
+      this.removeChannel(topic);
     }
+    this._advertisements = publishers;
+    this._setupPublishers();
+  }
+
+  private _setupPublishers(): void {
+    // This function will be called again once a connection is established
+    if (!this._client) {
+      return;
+    }
+
+    if (this._advertisements.length <= 0) {
+      return;
+    }
+
+    for (const { topic, datatype } of this._advertisements) {
+      this.addChannel({
+        topic,
+        encoding: "json",
+        schemaName: datatype,
+        schema: "unknown",
+      });
+    }
+  }
+
+  /**
+   * Advertise a new channel and inform any connected servers.
+   * @returns The id of the new channel
+   */
+  private addChannel(channel: Omit<Channel, "id">): ChannelId {
+    if (!this._client) {
+      throw new Error(`Websocket Client does not exist`);
+    }
+    const newId: ChannelId = this._client.addChannel(channel);
+    this._publisherIdsByTopic.set(channel.topic, newId);
+    return newId;
+  }
+
+  /**
+   * Remove a previously advertised channel and inform any connected servers.
+   */
+  private removeChannel(topic: string): void {
+    if (!this._client) {
+      return;
+    }
+    const channelId = this._publisherIdsByTopic.get(topic);
+    if (channelId == undefined) {
+      throw new Error(`Topic ${topic} does not exist`);
+    }
+    this._client.removeChannel(channelId);
+    this._publisherIdsByTopic.delete(topic);
   }
 
   setParameter(): void {
     throw new Error("Parameter editing is not supported by the Foxglove WebSocket connection");
   }
 
-  publish(): void {
-    throw new Error("Publishing is not supported by the Foxglove WebSocket connection");
+  publish({ topic, msg }: PublishPayload): void {
+    if (!this._client) {
+      return;
+    }
+
+    const channelId = this._publisherIdsByTopic.get(topic);
+    if (channelId == undefined) {
+      this._problems.addProblem(`publish:${topic}`, {
+        severity: "warn",
+        message: `Unable to publish to "${topic}"`,
+        tip: `Foxglove WebSocket may be disconnected. Please try again in a moment`,
+      });
+      this._emitState();
+      return;
+    }
+    const now = BigInt(Date.now()) * 1_000_000n;
+    this._client.sendMessageData(
+      channelId,
+      now,
+      this._textEncoder.encode(
+        JSON.stringify({
+          topic,
+          data: msg,
+        }),
+      ),
+    );
   }
 
   requestBackfill(): void {}
