@@ -52,7 +52,7 @@
     "@foxglove/ulog": "2.1.2",
     "@foxglove/velodyne-cloud": "1.0.1",
     "@foxglove/wasm-bz2": "0.1.0",
-    "@foxglove/ws-protocol": "0.0.8",
+    "@foxglove/ws-protocol": "github:saryazdi/ws-protocol#workspace=@foxglove/ws-protocol&commit=2cb3ed5dd19825e9d027c356dfe29c26ee3027f3",
     "@mdi/svg": "6.5.95",
     "@mui/icons-material": "5.4.1",
     "@mui/material": "5.4.1",
