@@ -34,9 +34,17 @@ const NodeHeader = muiStyled("div")(({ theme }) => {
     gridColumn: "span 2",
     paddingRight: theme.spacing(1.5),
 
+    ".MuiCheckbox-root": {
+      visibility: "hidden",
+    },
+
     "&:hover": {
       outline: `1px solid ${theme.palette.primary.main}`,
       outlineOffset: -1,
+
+      ".MuiCheckbox-root": {
+        visibility: "visible",
+      },
     },
   };
 });
@@ -146,7 +154,7 @@ function NodeEditorComponent(props: NodeEditorProps): JSX.Element {
           <Typography
             noWrap={true}
             variant="subtitle2"
-            fontWeight={600}
+            fontWeight={indent < 2 ? 600 : 400}
             color={visible ? "text.primary" : "text.disabled"}
           >
             {settings.label ?? "General"}
