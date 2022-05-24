@@ -451,6 +451,10 @@ function Plot(props: Props) {
 
   const actionHandler = useCallback(
     (action: SettingsTreeAction) => {
+      if (action.action !== "update") {
+        return;
+      }
+
       const { path, value } = action.payload;
       saveConfig(
         produce(config, (draft) => {
@@ -535,8 +539,8 @@ function Plot(props: Props) {
 const defaultConfig: PlotConfig = {
   title: undefined,
   paths: [{ value: "", enabled: true, timestampMethod: "receiveTime" }],
-  minYValue: "",
-  maxYValue: "",
+  minYValue: undefined,
+  maxYValue: undefined,
   showXAxisLabels: true,
   showYAxisLabels: true,
   showLegend: true,

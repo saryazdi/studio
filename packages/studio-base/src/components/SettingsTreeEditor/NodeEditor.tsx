@@ -4,11 +4,21 @@
 
 import ArrowDownIcon from "@mui/icons-material/ArrowDropDown";
 import ArrowRightIcon from "@mui/icons-material/ArrowRight";
-import { Divider, ListItemProps, styled as muiStyled, Typography, useTheme } from "@mui/material";
+import {
+  Divider,
+  IconButton,
+  ListItemProps,
+  styled as muiStyled,
+  Typography,
+  useTheme,
+} from "@mui/material";
 import { useMemo, useState } from "react";
 import { DeepReadonly } from "ts-essentials";
 
+import Stack from "@foxglove/studio-base/components/Stack";
+
 import { FieldEditor } from "./FieldEditor";
+import { NodeActionsMenu } from "./NodeActionsMenu";
 import { VisibilityToggle } from "./VisibilityToggle";
 import icons from "./icons";
 import { SettingsTreeAction, SettingsTreeNode } from "./types";
@@ -34,9 +44,18 @@ const NodeHeader = muiStyled("div")(({ theme }) => {
     gridColumn: "span 2",
     paddingRight: theme.spacing(1.5),
 
-    "&:hover": {
-      outline: `1px solid ${theme.palette.primary.main}`,
-      outlineOffset: -1,
+    "@media (pointer: fine)": {
+      ".MuiCheckbox-root": {
+        visibility: "hidden",
+      },
+      "&:hover": {
+        outline: `1px solid ${theme.palette.primary.main}`,
+        outlineOffset: -1,
+
+        ".MuiCheckbox-root": {
+          visibility: "visible",
+        },
+      },
     },
   };
 });
@@ -45,9 +64,10 @@ const NodeHeaderToggle = muiStyled("div", {
   shouldForwardProp: (prop) => prop !== "indent" && prop !== "visible",
 })<{ indent: number; visible: boolean }>(({ theme, indent, visible }) => {
   return {
-    display: "flex",
+    display: "grid",
     alignItems: "center",
     cursor: "pointer",
+    gridTemplateColumns: "auto 1fr auto",
     marginLeft: theme.spacing(1.5 + 2 * indent),
     opacity: visible ? 1 : 0.6,
     position: "relative",
@@ -89,6 +109,10 @@ function NodeEditorComponent(props: NodeEditorProps): JSX.Element {
       action: "update",
       payload: { input: "boolean", path: [...props.path, "visible"], value: !visible },
     });
+  };
+
+  const handleNodeAction = (actionId: string) => {
+    actionHandler({ action: "perform-node-action", payload: { id: actionId, path: props.path } });
   };
 
   const { fields, children } = settings;
@@ -146,20 +170,31 @@ function NodeEditorComponent(props: NodeEditorProps): JSX.Element {
           <Typography
             noWrap={true}
             variant="subtitle2"
-            fontWeight={600}
+            fontWeight={indent < 2 ? 600 : 400}
             color={visible ? "text.primary" : "text.disabled"}
           >
             {settings.label ?? "General"}
           </Typography>
         </NodeHeaderToggle>
-        <VisibilityToggle
-          edge="end"
-          size="small"
-          checked={visible}
-          onChange={toggleVisibility}
-          style={{ opacity: allowVisibilityToggle ? 1 : 0 }}
-          disabled={!allowVisibilityToggle}
-        />
+        <Stack alignItems="center" direction="row">
+          {/* this is just here to get consistent height */}
+          <IconButton style={{ visibility: "hidden" }}>
+            <ArrowDownIcon fontSize="small" color="inherit" />
+          </IconButton>
+          {settings.actions && (
+            <NodeActionsMenu actions={settings.actions} onSelectAction={handleNodeAction} />
+          )}
+          {settings.visible != undefined && (
+            <VisibilityToggle
+              edge="end"
+              size="small"
+              checked={visible}
+              onChange={toggleVisibility}
+              style={{ opacity: allowVisibilityToggle ? 1 : 0 }}
+              disabled={!allowVisibilityToggle}
+            />
+          )}
+        </Stack>
       </NodeHeader>
       {open && fieldEditors.length > 0 && (
         <>

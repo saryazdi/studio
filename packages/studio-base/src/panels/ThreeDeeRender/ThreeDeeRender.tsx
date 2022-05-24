@@ -6,6 +6,7 @@ import produce from "immer";
 // eslint-disable-next-line no-restricted-imports
 import { cloneDeep, merge, get, set } from "lodash";
 import React, { useCallback, useLayoutEffect, useEffect, useState, useMemo, useRef } from "react";
+import ReactDOM from "react-dom";
 import { useResizeDetector } from "react-resize-detector";
 import { DeepPartial } from "ts-essentials";
 import { useDebouncedCallback } from "use-debounce";
@@ -19,7 +20,10 @@ import {
 } from "@foxglove/regl-worldview";
 import { toNanoSec } from "@foxglove/rostime";
 import { PanelExtensionContext, RenderState, Topic, MessageEvent } from "@foxglove/studio";
-import { SettingsTreeAction } from "@foxglove/studio-base/components/SettingsTreeEditor/types";
+import {
+  EXPERIMENTAL_PanelExtensionContextWithSettings,
+  SettingsTreeAction,
+} from "@foxglove/studio-base/components/SettingsTreeEditor/types";
 import useCleanup from "@foxglove/studio-base/hooks/useCleanup";
 
 import { DebugGui } from "./DebugGui";
@@ -151,6 +155,10 @@ export function ThreeDeeRender({ context }: { context: PanelExtensionContext }):
   // Handle user changes in the settings sidebar
   const actionHandler = useCallback(
     (action: SettingsTreeAction) => {
+      if (action.action !== "update") {
+        return;
+      }
+
       setConfig((oldConfig) => {
         const newConfig = produce(oldConfig, (draft) => {
           set(draft, action.payload.path, action.payload.value);
@@ -250,8 +258,10 @@ export function ThreeDeeRender({ context }: { context: PanelExtensionContext }):
   const settingsNodeProviders = renderer?.settingsNodeProviders;
 
   useEffect(() => {
-    // eslint-disable-next-line no-underscore-dangle, @typescript-eslint/no-explicit-any
-    (context as unknown as any).__updatePanelSettingsTree({
+    // eslint-disable-next-line no-underscore-dangle
+    (
+      context as unknown as EXPERIMENTAL_PanelExtensionContextWithSettings
+    ).__updatePanelSettingsTree({
       actionHandler,
       roots: buildSettingsTree({
         config,
@@ -277,6 +287,7 @@ export function ThreeDeeRender({ context }: { context: PanelExtensionContext }):
   useEffect(() => {
     if (renderer) {
       renderer.config = config;
+      renderRef.current.needsRender = true;
     }
   }, [config, renderer]);
 
@@ -284,7 +295,7 @@ export function ThreeDeeRender({ context }: { context: PanelExtensionContext }):
   useEffect(() => {
     if (renderer?.config && followTf != undefined) {
       renderer.renderFrameId = followTf;
-      renderer.animationFrame();
+      renderRef.current.needsRender = true;
     }
   }, [followTf, renderer]);
 
@@ -308,35 +319,37 @@ export function ThreeDeeRender({ context }: { context: PanelExtensionContext }):
     //
     // The render handler could be invoked as often as 60hz during playback if fields are changing often.
     context.onRender = (renderState: RenderState, done) => {
-      if (renderState.currentTime) {
-        setCurrentTime(toNanoSec(renderState.currentTime));
-      }
+      ReactDOM.unstable_batchedUpdates(() => {
+        if (renderState.currentTime) {
+          setCurrentTime(toNanoSec(renderState.currentTime));
+        }
 
-      // render functions receive a _done_ callback. You MUST call this callback to indicate your panel has finished rendering.
-      // Your panel will not receive another render callback until _done_ is called from a prior render. If your panel is not done
-      // rendering before the next render call, studio shows a notification to the user that your panel is delayed.
-      //
-      // Set the done callback into a state variable to trigger a re-render
-      setRenderDone(done);
+        // render functions receive a _done_ callback. You MUST call this callback to indicate your panel has finished rendering.
+        // Your panel will not receive another render callback until _done_ is called from a prior render. If your panel is not done
+        // rendering before the next render call, studio shows a notification to the user that your panel is delayed.
+        //
+        // Set the done callback into a state variable to trigger a re-render
+        setRenderDone(done);
 
-      // Keep UI elements and the renderer aware of the current color scheme
-      setColorScheme(renderState.colorScheme);
+        // Keep UI elements and the renderer aware of the current color scheme
+        setColorScheme(renderState.colorScheme);
 
-      // We may have new topics - since we are also watching for messages in the current frame, topics may not have changed
-      // It is up to you to determine the correct action when state has not changed
-      setTopics(renderState.topics);
+        // We may have new topics - since we are also watching for messages in the current frame, topics may not have changed
+        // It is up to you to determine the correct action when state has not changed
+        setTopics(renderState.topics);
 
-      // currentFrame has messages on subscribed topics since the last render call
-      if (renderState.currentFrame) {
-        // Fully parse lazy messages
-        for (const messageEvent of renderState.currentFrame) {
-          const maybeLazy = messageEvent.message as { toJSON?: () => unknown };
-          if ("toJSON" in maybeLazy) {
-            (messageEvent as { message: unknown }).message = maybeLazy.toJSON!();
+        // currentFrame has messages on subscribed topics since the last render call
+        if (renderState.currentFrame) {
+          // Fully parse lazy messages
+          for (const messageEvent of renderState.currentFrame) {
+            const maybeLazy = messageEvent.message as { toJSON?: () => unknown };
+            if ("toJSON" in maybeLazy) {
+              (messageEvent as { message: unknown }).message = maybeLazy.toJSON!();
+            }
           }
         }
-      }
-      setMessages(renderState.currentFrame);
+        setMessages(renderState.currentFrame);
+      });
     };
 
     context.watch("currentTime");
