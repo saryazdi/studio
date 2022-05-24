@@ -124,6 +124,7 @@ export default class FoxgloveWebSocketPlayer implements Player {
       for (const topic of this._resolvedSubscriptionsByTopic.keys()) {
         this._unresolvedSubscriptions.add(topic);
       }
+      this._publisherIdsByTopic.clear();
       this._resolvedSubscriptionsById.clear();
       this._resolvedSubscriptionsByTopic.clear();
       delete this._client;
