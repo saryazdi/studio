@@ -2527,7 +2527,7 @@ __metadata:
     "@foxglove/ulog": 2.1.2
     "@foxglove/velodyne-cloud": 1.0.1
     "@foxglove/wasm-bz2": 0.1.0
-    "@foxglove/ws-protocol": "github:saryazdi/ws-protocol#workspace=@foxglove/ws-protocol&commit=2cb3ed5dd19825e9d027c356dfe29c26ee3027f3"
+    "@foxglove/ws-protocol": "github:saryazdi/ws-protocol#workspace=@foxglove/ws-protocol&commit=1e253eff9c7293d66fcde63fb6c3eefcb80fb6c9"
     "@mdi/svg": 6.5.95
     "@mui/icons-material": 5.4.1
     "@mui/material": 5.4.1
@@ -2719,14 +2719,14 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@foxglove/ws-protocol@github:saryazdi/ws-protocol#workspace=@foxglove/ws-protocol&commit=2cb3ed5dd19825e9d027c356dfe29c26ee3027f3":
+"@foxglove/ws-protocol@github:saryazdi/ws-protocol#workspace=@foxglove/ws-protocol&commit=1e253eff9c7293d66fcde63fb6c3eefcb80fb6c9":
   version: 0.0.8
-  resolution: "@foxglove/ws-protocol@https://github.com/saryazdi/ws-protocol.git#workspace=%40foxglove%2Fws-protocol&commit=2cb3ed5dd19825e9d027c356dfe29c26ee3027f3"
+  resolution: "@foxglove/ws-protocol@https://github.com/saryazdi/ws-protocol.git#workspace=%40foxglove%2Fws-protocol&commit=1e253eff9c7293d66fcde63fb6c3eefcb80fb6c9"
   dependencies:
     debug: ^4
     eventemitter3: ^4.0.7
     tslib: ^2
-  checksum: fcbbfc1a02896f059d006e8d90398485c49bfb5825e3b5c51abbb0c47a9c953047d9668c5bf39a4a9388cc2682d4007a4583de3c59654d60c04839625fcbf992
+  checksum: a5d26f448885fc23e41d50db0e3731e2c18f664cfa76c6a5bed64ec740e06f70d23068f24ab2ed85a3c0fbd50210c9fae5a7241465bea9b2875636946dcc9d9b
   languageName: node
   linkType: hard
 
