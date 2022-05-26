@@ -25,7 +25,13 @@ import {
 import { RosDatatypes } from "@foxglove/studio-base/types/RosDatatypes";
 import debouncePromise from "@foxglove/studio-base/util/debouncePromise";
 import { TimestampMethod } from "@foxglove/studio-base/util/time";
-import { Channel, ChannelId, FoxgloveClient, SubscriptionId } from "@foxglove/ws-protocol";
+import {
+  Channel,
+  ChannelId,
+  FoxgloveClient,
+  ServerCapabilities,
+  SubscriptionId,
+} from "@foxglove/ws-protocol";
 
 const log = Log.getLogger(__dirname);
 
@@ -41,6 +47,7 @@ type ResolvedChannel = { channel: Channel; parsedChannel: ParsedChannel };
 export default class FoxgloveWebSocketPlayer implements Player {
   private _url: string; // WebSocket URL.
   private _name: string;
+  private _serverCapabilities?: string[];
   private _client?: FoxgloveClient; // The client when we're connected.
   private _id: string = uuidv4(); // Unique ID for this player.
   private _listener?: (arg0: PlayerState) => Promise<void>; // Listener for _emitState().
@@ -59,9 +66,7 @@ export default class FoxgloveWebSocketPlayer implements Player {
   private _lastSeekTime = 0;
   private _currentTime?: Time;
 
-  private _publisherIdsByTopic = new Map<string, ChannelId>(); // active publishers for the current connection
-  private _textEncoder = new TextEncoder();
-  private _advertisements: AdvertiseOptions[] = []; // which topics we want to advertise to other nodes
+  private _clientChannelTopics: string[] = []; // active clientChannels for the current connection
   private _unresolvedSubscriptions = new Set<string>();
   private _resolvedSubscriptionsByTopic = new Map<string, SubscriptionId>();
   private _resolvedSubscriptionsById = new Map<SubscriptionId, ResolvedChannel>();
@@ -124,7 +129,7 @@ export default class FoxgloveWebSocketPlayer implements Player {
       for (const topic of this._resolvedSubscriptionsByTopic.keys()) {
         this._unresolvedSubscriptions.add(topic);
       }
-      this._publisherIdsByTopic.clear();
+      this._clientChannelTopics = [];
       this._resolvedSubscriptionsById.clear();
       this._resolvedSubscriptionsByTopic.clear();
       delete this._client;
@@ -143,6 +148,7 @@ export default class FoxgloveWebSocketPlayer implements Player {
 
     client.on("serverInfo", (event) => {
       this._name = `${this._url}\n${event.name}`;
+      this._serverCapabilities = event.capabilities;
       this._emitState();
     });
 
@@ -443,72 +449,51 @@ export default class FoxgloveWebSocketPlayer implements Player {
   setPublishers(publishers: AdvertiseOptions[]): void {
     // Since `setPublishers` is rarely called, we can get away with just throwing away the old
     // Roslib.Topic objects and creating new ones.
-    for (const topic of this._publisherIdsByTopic.keys()) {
-      this.removeChannel(topic);
-    }
-    this._advertisements = publishers;
-    this._setupPublishers();
-  }
-
-  private _setupPublishers(): void {
-    // This function will be called again once a connection is established
     if (!this._client) {
       return;
     }
-
-    if (this._advertisements.length <= 0) {
+    if (!this._checkServerCanReceive()) {
       return;
     }
 
-    for (const { topic, datatype } of this._advertisements) {
-      this.addChannel({
-        topic,
-        encoding: "json",
-        schemaName: datatype,
-        schema: "unknown",
-      });
+    for (const topic of this._clientChannelTopics) {
+      this._client.unadvertise(topic);
     }
-  }
-
-  /**
-   * Advertise a new channel and inform any connected servers.
-   * @returns The id of the new channel
-   */
-  private addChannel(channel: Omit<Channel, "id">): ChannelId {
-    if (!this._client) {
-      throw new Error(`Websocket Client does not exist`);
+    for (const { topic, datatype } of publishers) {
+      this._clientChannelTopics.push(topic);
+      this._client.advertise({ topic, schemaName: datatype });
     }
-    const newId: ChannelId = this._client.addChannel(channel);
-    this._publisherIdsByTopic.set(channel.topic, newId);
-    return newId;
-  }
-
-  /**
-   * Remove a previously advertised channel and inform any connected servers.
-   */
-  private removeChannel(topic: string): void {
-    if (!this._client) {
-      return;
-    }
-    const channelId = this._publisherIdsByTopic.get(topic);
-    if (channelId == undefined) {
-      throw new Error(`Topic ${topic} does not exist`);
-    }
-    this._client.removeChannel(channelId);
-    this._publisherIdsByTopic.delete(topic);
   }
 
   setParameter(): void {
     throw new Error("Parameter editing is not supported by the Foxglove WebSocket connection");
   }
 
+  _checkServerCanReceive(): boolean {
+    if (
+      this._serverCapabilities == undefined ||
+      !this._serverCapabilities.includes(ServerCapabilities.receiveClientData)
+    ) {
+      this._problems.addProblem(`publish`, {
+        severity: "warn",
+        message: `Unable to publish to server "${this._name}"`,
+        tip: `Server does not support receiving client data.`,
+      });
+      this._emitState();
+      return false;
+    }
+    return true;
+  }
+
   publish({ topic, msg }: PublishPayload): void {
     if (!this._client) {
       return;
     }
+    if (!this._checkServerCanReceive()) {
+      return;
+    }
 
-    const channelId = this._publisherIdsByTopic.get(topic);
-    if (channelId == undefined) {
+    if (!this._clientChannelTopics.includes(topic)) {
       this._problems.addProblem(`publish:${topic}`, {
         severity: "warn",
         message: `Unable to publish to "${topic}"`,
@@ -517,17 +502,8 @@ export default class FoxgloveWebSocketPlayer implements Player {
       this._emitState();
       return;
     }
-    const now = BigInt(Date.now()) * 1_000_000n;
-    this._client.sendMessageData(
-      channelId,
-      now,
-      this._textEncoder.encode(
-        JSON.stringify({
-          topic,
-          data: msg,
-        }),
-      ),
-    );
+    const now = Date.now();
+    this._client.sendData(topic, msg, now);
   }
 
   requestBackfill(): void {}
